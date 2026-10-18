@@ -126,7 +126,7 @@ export function SignIn({
         </h2>
         <p className="muted">
           {mode === "in"
-            ? "Enter your credentials or choose a quick demo role to get started."
+            ? "Enter your credentials or choose an access role to get started."
             : "Sign up to begin publishing, organizing, and saving resources."}
         </p>
 

@@ -1,9 +1,25 @@
 import { defineConfig, type HtmlTagDescriptor, type Plugin } from "vite"
 import react from "@vitejs/plugin-react"
 import tailwindcss from "@tailwindcss/vite"
+import fs from "node:fs"
 import path from "node:path"
 
-import siteConfiguration from "./.figma/make/site.json" with { type: "json" }
+let siteConfiguration: FigmaSiteConfiguration = {
+  title: "OpenShelf",
+  description:
+    "Centralized digital library enabling users to share, discover, and collaborate on educational resources with version control and community feedback.",
+  robots: { index: false },
+  accessibility: { addBypassLinks: false },
+}
+
+const siteJsonPath = path.resolve(import.meta.dirname, "./.figma/make/site.json")
+if (fs.existsSync(siteJsonPath)) {
+  try {
+    siteConfiguration = JSON.parse(fs.readFileSync(siteJsonPath, "utf-8"))
+  } catch {
+    // fallback to default
+  }
+}
 
 // Vite config — https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {

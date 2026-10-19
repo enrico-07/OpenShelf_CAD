@@ -61,7 +61,7 @@ export function Icon({
   return (
     <span
       aria-hidden="true"
-      className={`icon ${filled ? "filled" : ""} ${
+      className={`icon material-symbols-rounded ${filled ? "filled" : ""} ${
         isChevronLeft ? "icon-chevron-left" : ""
       } ${className}`}
       data-name={name}

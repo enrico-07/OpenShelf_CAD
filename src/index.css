@@ -1,14 +1,13 @@
+@import "https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200";
 @import "@fontsource-variable/dm-sans/opsz.css";
 @import "tailwindcss";
 
-/* Google Material Symbols Rounded, self-hosted. The file is a Google Fonts
-   subset containing only the glyphs listed in iconGlyphs (src/App.tsx);
-   re-download it with the updated icon_names list when adding icons. */
+/* Google Material Symbols Rounded Local Fallback */
 @font-face {
-  font-family: "Material Symbols Rounded";
+  font-family: "Material Symbols Rounded Fallback";
   font-style: normal;
   font-weight: 400;
-  font-display: block;
+  font-display: swap;
   src: url("./assets/fonts/material-symbols-rounded-subset.woff2") format("woff2");
 }
 
@@ -235,27 +234,31 @@ strong {
 }
 
 /* Google Material Symbols (Rounded) */
-.icon {
+.icon,
+.material-symbols-rounded {
   display: inline-block;
   flex: none;
   width: 1em;
   height: 1em;
   overflow: hidden;
-  font-family: "Material Symbols Rounded";
+  font-family: "Material Symbols Rounded", "Material Symbols Rounded Fallback", sans-serif;
   font-weight: normal;
   font-style: normal;
   line-height: 1;
   letter-spacing: normal;
   text-transform: none;
   white-space: nowrap;
+  word-wrap: normal;
   direction: ltr;
   user-select: none;
   -webkit-font-smoothing: antialiased;
+  -webkit-font-feature-settings: "liga";
   font-feature-settings: "liga";
   font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
 }
 
-.icon.filled {
+.icon.filled,
+.material-symbols-rounded.filled {
   font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24;
 }
 

@@ -29,6 +29,8 @@ if ! command -v node &> /dev/null; then
         sudo apt-get install -y nodejs
     fi
 fi
+NODE_PATH=$(which node)
+echo "Node.js path:    $NODE_PATH"
 echo "Node.js version: $(node -v)"
 echo "npm version:     $(npm -v)"
 
@@ -41,7 +43,7 @@ sudo chown -R "$USER:$USER" "$APP_DIR"
 # 4. Clone or update repository
 if [ ! -d "$APP_DIR/.git" ]; then
     echo "--> Cloning repository..."
-    git clone https://github.com/enrico-07/OpenShelf.git "$APP_DIR"
+    git clone https://github.com/enrico-07/OpenShelf_CAD.git "$APP_DIR"
 else
     echo "--> Pulling latest code..."
     cd "$APP_DIR" && git pull origin main
@@ -49,16 +51,25 @@ fi
 
 cd "$APP_DIR"
 
-# 5. Install dependencies & build frontend assets
+# 5. Environment configuration setup
+if [ ! -f "$APP_DIR/.env" ]; then
+    echo "--> Initializing .env configuration from template..."
+    cp "$APP_DIR/.env.example" "$APP_DIR/.env"
+fi
+
+# 6. Install dependencies & build production bundle
 echo "--> Installing npm dependencies..."
 npm install
 
-echo "--> Building production Vite bundle..."
+echo "--> Building production bundle..."
 npm run build
 
-# 6. Copy systemd service unit
-echo "--> Installing systemd unit..."
+# 7. Configure and install systemd service unit
+echo "--> Configuring systemd service unit..."
 sudo cp "$APP_DIR/deploy/openshelf.service" /etc/systemd/system/openshelf.service
+sudo sed -i "s|User=ec2-user|User=$USER|g" /etc/systemd/system/openshelf.service
+sudo sed -i "s|/usr/bin/node|$NODE_PATH|g" /etc/systemd/system/openshelf.service
+
 sudo systemctl daemon-reload
 sudo systemctl enable openshelf
 sudo systemctl restart openshelf
@@ -67,4 +78,5 @@ echo "=================================================="
 echo " OpenShelf is now RUNNING on Amazon EC2!          "
 echo " Check status: sudo systemctl status openshelf    "
 echo " Server logs:  sudo journalctl -u openshelf -f    "
+echo " Health check: curl http://localhost:5000/api/health "
 echo "=================================================="

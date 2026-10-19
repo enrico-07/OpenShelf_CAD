@@ -108,18 +108,24 @@ class SecureApiClient {
 
   async login(
     email: string,
+    password?: string,
     role: "learner" | "moderator" = "learner",
     name?: string,
-  ): Promise<{ user: UserProfile, token: string }> {
+    moderatorCode?: string,
+  ): Promise<{ user: UserProfile; token: string }> {
     try {
-      const res = await this.request<{ user: UserProfile, token: string }>(
+      const res = await this.request<{ user: UserProfile; token: string }>(
         "/auth/login",
         {
           method: "POST",
           body: JSON.stringify({
             email: email.trim(),
+            password,
             role,
             name: sanitizeString(name),
+            moderatorCode: moderatorCode
+              ? sanitizeString(moderatorCode)
+              : undefined,
           }),
         },
       )
@@ -127,7 +133,17 @@ class SecureApiClient {
         this.setToken(res.token)
       }
       return res
-    } catch (err) {
+    } catch (err: any) {
+      if (
+        err.message &&
+        (err.message.includes("Forbidden") ||
+          err.message.includes("Rate limit") ||
+          err.message.includes("Validation") ||
+          err.message.includes("passkey") ||
+          err.message.includes("password"))
+      ) {
+        throw err
+      }
       // Fallback for standalone demo mode
       const cleanName =
         sanitizeString(name) ||
@@ -152,21 +168,53 @@ class SecureApiClient {
     email: string
     password?: string
     role: "learner" | "moderator"
-  }): Promise<{ user: UserProfile, token: string }> {
-    return this.request<{ user: UserProfile, token: string }>("/auth/register", {
+    moderatorCode?: string
+  }): Promise<{ user: UserProfile; token: string }> {
+    const res = await this.request<{ user: UserProfile; token: string }>(
+      "/auth/register",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          name: sanitizeString(data.name),
+          email: data.email.trim(),
+          password: data.password || "SecurePassword123!",
+          role: data.role,
+          moderatorCode: data.moderatorCode
+            ? sanitizeString(data.moderatorCode)
+            : undefined,
+        }),
+      },
+    )
+    if (res.token) {
+      this.setToken(res.token)
+    }
+    return res
+  }
+
+  async upgradeRole(moderatorCode: string): Promise<{
+    user: UserProfile
+    token: string
+    message: string
+  }> {
+    const res = await this.request<{
+      user: UserProfile
+      token: string
+      message: string
+    }>("/auth/upgrade-role", {
       method: "POST",
       body: JSON.stringify({
-        name: sanitizeString(data.name),
-        email: data.email.trim(),
-        password: data.password || "SecurePassword123!",
-        role: data.role,
+        moderatorCode: sanitizeString(moderatorCode),
       }),
     })
+    if (res.token) {
+      this.setToken(res.token)
+    }
+    return res
   }
 
   logout(): void {
     this.setToken(null)
-    localStorage.removeItem("openshelf_user")
+    localStorage.removeItem("openshelf_v3_user")
   }
 
   // --- Resources ---
@@ -292,6 +340,50 @@ class SecureApiClient {
     return true
   }
 
+  async getPresignedUploadUrl(
+    filename: string,
+    contentType: string = "application/pdf",
+    resourceId?: number,
+    version?: number,
+  ): Promise<{
+    uploadUrl: string
+    s3Key: string
+    bucket: string
+    isSimulation: boolean
+  }> {
+    const params = new URLSearchParams({
+      filename,
+      contentType,
+      ...(resourceId ? { resourceId: String(resourceId) } : {}),
+      ...(version ? { version: String(version) } : {}),
+    })
+    return this.request<{
+      uploadUrl: string
+      s3Key: string
+      bucket: string
+      isSimulation: boolean
+    }>(`/resources/upload-url?${params.toString()}`)
+  }
+
+  async uploadFileToS3(uploadUrl: string, file: File): Promise<void> {
+    if (uploadUrl.includes("simulation=true")) {
+      await new Promise((r) => setTimeout(r, 600))
+      return
+    }
+
+    const response = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": file.type || "application/pdf",
+      },
+      body: file,
+    })
+
+    if (!response.ok) {
+      throw new Error(`S3 upload failed with status ${response.status}`)
+    }
+  }
+
   async getPresignedDownloadUrl(
     resourceId: number,
     versionNum: number,
@@ -330,6 +422,35 @@ class SecureApiClient {
       method: "PUT",
     })
     return true
+  }
+
+  async getTelemetryMetrics(): Promise<{
+    isCloudWatchLive: boolean
+    namespace: string
+    region: string
+    totalRequests: number
+    errors4xx: number
+    errors5xx: number
+    uploadsCount: number
+    moderationCount: number
+    p95LatencyMs: number
+    p99LatencyMs: number
+    uptimeSeconds: number
+    activeBackgroundWorkers: number
+    healthStatus: string
+    timestamp: string
+  }> {
+    return this.request("/telemetry/metrics")
+  }
+
+  async subscribeToNotifications(email: string): Promise<{
+    success: boolean
+    message: string
+  }> {
+    return this.request("/notifications/subscribe", {
+      method: "POST",
+      body: JSON.stringify({ email: sanitizeString(email) }),
+    })
   }
 }
 

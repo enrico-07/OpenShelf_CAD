@@ -88,7 +88,7 @@ export type Collection = {
 export type UserProfile = {
   name: string
   email: string
-  role: "learner" | "moderator"
+  role: "learner" | "moderator" | "guest"
   avatarInitials?: string
 }
 

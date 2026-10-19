@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { Item, Status } from "../types"
 import { ResourceCover } from "../components/cover/ResourceCover"
 import { Button } from "../components/common/Button"
@@ -11,7 +12,7 @@ export function ModerationView({
   onOpenResource,
   onOpenReader,
   onModerate,
-  onSwitchToModerator,
+  onUpgradeWithPasskey,
 }: {
   isModerator: boolean
   items: Item[]
@@ -20,8 +21,12 @@ export function ModerationView({
   onOpenResource: (id: number) => void
   onOpenReader?: (id: number) => void
   onModerate: (id: number, status: Status) => void
-  onSwitchToModerator: () => void
+  onUpgradeWithPasskey?: (passkey: string) => Promise<boolean>
 }) {
+  const [passkeyInput, setPasskeyInput] = useState("")
+  const [passkeyError, setPasskeyError] = useState<string | null>(null)
+  const [isVerifying, setIsVerifying] = useState(false)
+
   const statusLabel: Record<Status, string> = {
     approved: "Approved",
     pending: "Pending review",
@@ -31,18 +36,77 @@ export function ModerationView({
 
   if (!isModerator) {
     return (
-      <div className="empty-state">
+      <div
+        className="empty-state"
+        style={{ maxWidth: "440px", margin: "40px auto" }}
+      >
         <span>
           <Icon name="shield" size={28} />
         </span>
-        <h2>Moderator access required</h2>
+        <h2>Moderator authorization required</h2>
         <p>
-          Your account role does not include moderation permissions. Sign in as
-          a moderator to review content.
+          The community moderation queue is restricted to verified moderators.
+          Enter your institutional security passkey to unlock permissions.
         </p>
-        <Button className="primary-button" onClick={onSwitchToModerator}>
-          Switch to moderator role
-        </Button>
+
+        {passkeyError && (
+          <div
+            style={{
+              color: "#ef4444",
+              fontSize: "var(--fs-sm)",
+              marginBottom: "12px",
+            }}
+          >
+            {passkeyError}
+          </div>
+        )}
+
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault()
+            if (!onUpgradeWithPasskey) return
+            setPasskeyError(null)
+            setIsVerifying(true)
+            const success = await onUpgradeWithPasskey(passkeyInput.trim())
+            setIsVerifying(false)
+            if (!success) {
+              setPasskeyError(
+                "Invalid Moderator Security Passkey. Access denied.",
+              )
+            }
+          }}
+          style={{
+            width: "100%",
+            display: "flex",
+            flexDirection: "column",
+            gap: "10px",
+            marginTop: "12px",
+          }}
+        >
+          <input
+            type="password"
+            placeholder="Enter key (Demo: OPENSHELF_MOD_2026)"
+            value={passkeyInput}
+            onChange={(e) => setPasskeyInput(e.target.value)}
+            required
+            style={{
+              width: "100%",
+              padding: "8px 12px",
+              borderRadius: "var(--radius-md)",
+              border: "1px solid var(--border-color)",
+              background: "var(--surface-color)",
+              color: "var(--text-color)",
+            }}
+          />
+          <Button
+            className="primary-button"
+            icon={isVerifying ? "clock" : "shield"}
+            type="submit"
+            disabled={isVerifying || !passkeyInput.trim()}
+          >
+            {isVerifying ? "Verifying key..." : "Verify & Unlock Moderation"}
+          </Button>
+        </form>
       </div>
     )
   }

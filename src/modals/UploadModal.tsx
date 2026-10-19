@@ -42,9 +42,10 @@ export function UploadModal({
   onDraftChange: (updater: (prev: DraftState) => DraftState) => void
   onStepChange: (step: number) => void
   onClose: () => void
-  onSubmit: (e: FormEvent) => void
+  onSubmit: (e: FormEvent, file?: File | null) => void
   versions: Record<number, Version[]>
 }) {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [fileMeta, setFileMeta] = useState<FileMeta | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
   const [isSimulatingS3Upload, setIsSimulatingS3Upload] = useState(false)
@@ -56,6 +57,7 @@ export function UploadModal({
   const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    setSelectedFile(file)
 
     const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase()
     if (!allowedExtensions.includes(ext)) {
@@ -123,7 +125,7 @@ export function UploadModal({
           clearInterval(timer)
           setTimeout(() => {
             setIsSimulatingS3Upload(false)
-            onSubmit(e)
+            onSubmit(e, selectedFile)
           }, 350)
           return 100
         }

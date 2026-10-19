@@ -50,12 +50,37 @@ export function sanitizeObject<T>(obj: T): T {
   return clean as T
 }
 
+export const STORAGE_VERSION = "openshelf_v3_"
+
+/**
+ * Automatically purges legacy cached demo data from earlier versions
+ */
+export function purgeLegacyStorage(): void {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return
+    const legacyPrefixes = ["openshelf_v1_", "openshelf_v2_"]
+    const toRemove: string[] = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key && legacyPrefixes.some((p) => key.startsWith(p))) {
+        toRemove.push(key)
+      }
+    }
+    toRemove.forEach((k) => localStorage.removeItem(k))
+  } catch {
+    /* ignore browser storage access restrictions */
+  }
+}
+
+// Run purge on evaluation
+purgeLegacyStorage()
+
 /**
  * Safe LocalStorage reader with prototype pollution defense
  */
 export function getSafeStored<T>(key: string, fallback: T): T {
   try {
-    const raw = localStorage.getItem(`openshelf_v2_${key}`)
+    const raw = localStorage.getItem(`${STORAGE_VERSION}${key}`)
     if (raw) {
       const parsed = JSON.parse(raw)
       return sanitizeObject(parsed) as T
@@ -72,7 +97,7 @@ export function getSafeStored<T>(key: string, fallback: T): T {
 export function setSafeStored<T>(key: string, val: T): void {
   try {
     const clean = sanitizeObject(val)
-    localStorage.setItem(`openshelf_v2_${key}`, JSON.stringify(clean))
+    localStorage.setItem(`${STORAGE_VERSION}${key}`, JSON.stringify(clean))
   } catch {
     /* ignore storage quota exhaustion */
   }
@@ -86,7 +111,7 @@ const actionTimestamps: Record<string, number> = {}
 export function checkClientRateLimit(
   actionKey: string,
   cooldownMs: number = 2000,
-): { allowed: boolean, remainingSeconds: number } {
+): { allowed: boolean; remainingSeconds: number } {
   const now = Date.now()
   const lastTime = actionTimestamps[actionKey] || 0
   const elapsed = now - lastTime

@@ -1,3 +1,4 @@
+import { useMemo } from "react"
 import { Item } from "../types"
 import { ResourceCard } from "../components/cards/ResourceCard"
 import {
@@ -73,16 +74,13 @@ export function DiscoverView({
     "Most saved",
   ]
 
-  const popularTags = [
-    "Algorithms",
-    "Diagrams",
-    "Beginner",
-    "Exam prep",
-    "Calculus",
-    "Solutions",
-    "Memory",
-    "Templates",
-  ]
+  const popularTags = useMemo(() => {
+    const set = new Set<string>()
+    published.forEach((item) => {
+      item.tags?.forEach((t) => set.add(t))
+    })
+    return Array.from(set).slice(0, 10)
+  }, [published])
 
   const grid = isLoading ? (
     <div className="resource-grid">
@@ -300,34 +298,36 @@ export function DiscoverView({
       />
 
       {/* Multi-Tag Pill Bar */}
-      <div className="tag-filter-bar">
-        <span className="tag-filter-label">Quick topics:</span>
-        <div className="tag-pills-list">
-          {popularTags.map((tag) => {
-            const isSelected = selectedTags?.includes(tag)
-            return (
+      {popularTags.length > 0 && (
+        <div className="tag-filter-bar">
+          <span className="tag-filter-label">Quick topics:</span>
+          <div className="tag-pills-list">
+            {popularTags.map((tag) => {
+              const isSelected = selectedTags?.includes(tag)
+              return (
+                <button
+                  className={`tag-pill ${isSelected ? "selected" : ""}`}
+                  key={tag}
+                  onClick={() => onToggleTag?.(tag)}
+                  type="button"
+                >
+                  {isSelected && <Icon name="check" size={13} />}
+                  <span>{tag}</span>
+                </button>
+              )
+            })}
+            {selectedTags && selectedTags.length > 0 && (
               <button
-                className={`tag-pill ${isSelected ? "selected" : ""}`}
-                key={tag}
-                onClick={() => onToggleTag?.(tag)}
+                className="clear-tags-btn"
+                onClick={onResetFilters}
                 type="button"
               >
-                {isSelected && <Icon name="check" size={13} />}
-                <span>{tag}</span>
+                Reset tags
               </button>
-            )
-          })}
-          {selectedTags && selectedTags.length > 0 && (
-            <button
-              className="clear-tags-btn"
-              onClick={onResetFilters}
-              type="button"
-            >
-              Reset tags
-            </button>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {showFilters && (
         <div className="filter-panel">

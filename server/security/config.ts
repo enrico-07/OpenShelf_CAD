@@ -1,8 +1,14 @@
+// Automatically load .env file if available (Node 20+)
+try {
+  process.loadEnvFile?.()
+} catch {}
+
 export interface SecurityConfig {
   port: number
   nodeEnv: string
   jwtSecret: string
   jwtExpiresIn: string
+  moderatorSecretKey: string
   corsOrigins: string[]
   maxUploadSizeBytes: number
   rateLimits: {
@@ -24,6 +30,7 @@ export const config: SecurityConfig = {
     process.env.JWT_SECRET ||
     "openshelf-dev-secure-jwt-secret-key-change-in-production-random-256",
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "7d",
+  moderatorSecretKey: process.env.MODERATOR_SECRET_KEY || "OPENSHELF_MOD_2026",
   corsOrigins: process.env.CORS_ORIGIN
     ? process.env.CORS_ORIGIN.split(",").map((o) => o.trim())
     : [

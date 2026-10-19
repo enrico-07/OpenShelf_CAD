@@ -1,0 +1,21 @@
+[Unit]
+Description=OpenShelf Web & API Backend Service
+After=network.target
+
+[Service]
+Type=simple
+User=ec2-user
+WorkingDirectory=/opt/openshelf
+EnvironmentFile=/opt/openshelf/.env
+Environment=NODE_ENV=production
+Environment=PORT=80
+Environment=BACKEND_PORT=5000
+ExecStart=/usr/bin/node /opt/openshelf/server/index.ts
+Restart=on-failure
+RestartSec=5
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=openshelf
+
+[Install]
+WantedBy=multi-user.target

@@ -33,6 +33,19 @@ export default defineConfig(({ mode }) => {
     build: {
       sourcemap: emitSourcemaps ? "inline" : false,
       minify: !emitSourcemaps,
+      chunkSizeWarningLimit: 1200,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes("node_modules/react") || id.includes("node_modules/react-dom")) {
+              return "vendor-react"
+            }
+            if (id.includes("node_modules/dompurify")) {
+              return "vendor-security"
+            }
+          },
+        },
+      },
     },
     plugins: [
       react(),
@@ -51,6 +64,7 @@ export default defineConfig(({ mode }) => {
       host: process.env.FIGMA_DEV_SERVER_HOST || "0.0.0.0",
       port: parseInt(process.env.PORT || "8443"),
       strictPort: true,
+      allowedHosts: true,
       headers: {
         "X-Content-Type-Options": "nosniff",
         "X-Frame-Options": "SAMEORIGIN",
@@ -62,6 +76,19 @@ export default defineConfig(({ mode }) => {
           target: `http://127.0.0.1:${process.env.BACKEND_PORT || "5000"}`,
           changeOrigin: true,
           secure: false,
+          configure: (proxy) => {
+            proxy.on("error", (_err, _req, res) => {
+              // Silently handle backend offline without polluting terminal
+              if (res && "writeHead" in res && !res.headersSent) {
+                try {
+                  res.writeHead(503, { "Content-Type": "application/json" })
+                  res.end(JSON.stringify({ error: "Backend server offline (running in frontend standalone mode)" }))
+                } catch {
+                  // ignore socket closed
+                }
+              }
+            })
+          },
         },
       },
       watch: {
@@ -81,6 +108,18 @@ export default defineConfig(({ mode }) => {
           target: `http://127.0.0.1:${process.env.BACKEND_PORT || "5000"}`,
           changeOrigin: true,
           secure: false,
+          configure: (proxy) => {
+            proxy.on("error", (_err, _req, res) => {
+              if (res && "writeHead" in res && !res.headersSent) {
+                try {
+                  res.writeHead(503, { "Content-Type": "application/json" })
+                  res.end(JSON.stringify({ error: "Backend server offline (running in frontend standalone mode)" }))
+                } catch {
+                  // ignore
+                }
+              }
+            })
+          },
         },
       },
     },

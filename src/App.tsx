@@ -124,16 +124,16 @@ export default function App() {
   })
 
   const [selectedId, setSelectedId] = useState(() =>
-    getSafeStored<number>("selectedId", 1),
+    getSafeStored<number>("selectedId", 0),
   )
   const [saved, setSaved] = useState<number[]>(() =>
-    getSafeStored<number[]>("saved", [2, 4]),
+    getSafeStored<number[]>("saved", []),
   )
   const [following, setFollowing] = useState<number[]>(() =>
-    getSafeStored<number[]>("following", [1]),
+    getSafeStored<number[]>("following", []),
   )
   const [followedSubjects, setFollowedSubjects] = useState<string[]>(() =>
-    getSafeStored<string[]>("followedSubjects", ["Computer Science"]),
+    getSafeStored<string[]>("followedSubjects", []),
   )
   const [myRatings, setMyRatings] = useState<Record<number, number>>(() =>
     getSafeStored<Record<number, number>>("myRatings", {}),
@@ -375,7 +375,9 @@ export default function App() {
     if (!selected) return
     const rateCheck = checkClientRateLimit("reply", 2000)
     if (!rateCheck.allowed) {
-      flash(`Please wait ${rateCheck.remainingSeconds}s before posting another reply`)
+      flash(
+        `Please wait ${rateCheck.remainingSeconds}s before posting another reply`,
+      )
       return
     }
     const cleanText = sanitizeString(text)
@@ -485,6 +487,11 @@ export default function App() {
   }
 
   const startUpload = (revisionOf?: number) => {
+    if (user?.role === "guest") {
+      flash("Please sign in or create an account to publish materials.")
+      setUser(null)
+      return
+    }
     const parent = items.find((item) => item.id === revisionOf)
     if (parent) {
       setDraft((current) => ({
@@ -502,7 +509,7 @@ export default function App() {
     setUploadStep(1)
   }
 
-  const submitUpload = async (event: FormEvent) => {
+  const submitUpload = async (event: FormEvent, uploadedFile?: File | null) => {
     event.preventDefault()
     if (uploadStep < 3) {
       setUploadStep((step) => step + 1)
@@ -511,7 +518,9 @@ export default function App() {
 
     const rateCheck = checkClientRateLimit("upload", 3000)
     if (!rateCheck.allowed) {
-      flash(`Rate limited: Please wait ${rateCheck.remainingSeconds}s before submitting again`)
+      flash(
+        `Rate limited: Please wait ${rateCheck.remainingSeconds}s before submitting again`,
+      )
       return
     }
 
@@ -520,7 +529,30 @@ export default function App() {
       const cleanNote = sanitizeString(draft.note || "Community improvement")
       const authorName = user?.name ?? "Contributor"
       try {
-        const newVer = await api.uploadRevision(parent.id, cleanNote, authorName)
+        const newVer = await api.uploadRevision(
+          parent.id,
+          cleanNote,
+          authorName,
+        )
+
+        // Direct-to-S3 upload for revision if file provided
+        if (uploadedFile) {
+          try {
+            const presigned = await api.getPresignedUploadUrl(
+              uploadedFile.name,
+              uploadedFile.type || "application/pdf",
+              parent.id,
+              newVer.number,
+            )
+            await api.uploadFileToS3(presigned.uploadUrl, uploadedFile)
+            console.log(
+              `[S3] Streamed revision to ${presigned.bucket}/${presigned.s3Key}`,
+            )
+          } catch (uploadErr: any) {
+            console.warn("[S3 Revision Upload Notice]:", uploadErr.message)
+          }
+        }
+
         setVersions((current) => ({
           ...current,
           [parent.id]: [newVer, ...(current[parent.id] ?? [])],
@@ -570,6 +602,24 @@ export default function App() {
           color: subjectColor,
           pages: 12,
         })
+
+        // Direct-to-S3 upload for initial resource if file provided
+        if (uploadedFile) {
+          try {
+            const presigned = await api.getPresignedUploadUrl(
+              uploadedFile.name,
+              uploadedFile.type || "application/pdf",
+              newItem.id,
+              1,
+            )
+            await api.uploadFileToS3(presigned.uploadUrl, uploadedFile)
+            console.log(
+              `[S3] Streamed file to ${presigned.bucket}/${presigned.s3Key}`,
+            )
+          } catch (uploadErr: any) {
+            console.warn("[S3 Upload Notice]:", uploadErr.message)
+          }
+        }
 
         setItems((current) => [newItem, ...current])
         setVersions((current) => ({
@@ -642,7 +692,9 @@ export default function App() {
 
     const rateCheck = checkClientRateLimit("feedback", 2000)
     if (!rateCheck.allowed) {
-      flash(`Rate limited: Please wait ${rateCheck.remainingSeconds}s before posting feedback`)
+      flash(
+        `Rate limited: Please wait ${rateCheck.remainingSeconds}s before posting feedback`,
+      )
       return
     }
 
@@ -755,24 +807,43 @@ export default function App() {
   if (!user) {
     return (
       <SignInView
-        onSignIn={async (name, role) => {
-          const chosenName =
-            sanitizeString(name) ||
-            (role === "moderator" ? "Moderator" : "New Contributor")
-          const email = `${chosenName.toLowerCase().replace(/\s+/g, ".")}@uni.edu`
-          try {
-            const res = await api.login(email, role, chosenName)
+        items={items}
+        onSignIn={async (creds) => {
+          if (creds.mode === "up") {
+            const res = await api.register({
+              name:
+                creds.name ||
+                (creds.role === "moderator"
+                  ? "Community Moderator"
+                  : "Learner"),
+              email: creds.email,
+              password: creds.password,
+              role: creds.role,
+              moderatorCode: creds.moderatorCode,
+            })
+            setUser(res.user)
+            flash(`Account created! Welcome, ${res.user.name}`)
+          } else {
+            const res = await api.login(
+              creds.email,
+              creds.password,
+              creds.role,
+              creds.name,
+              creds.moderatorCode,
+            )
             setUser(res.user)
             flash(`Signed in securely as ${res.user.name}`)
-          } catch {
-            setUser({
-              name: chosenName,
-              email,
-              role,
-              avatarInitials: getInitials(chosenName),
-            })
-            flash(`Signed in as ${chosenName}`)
           }
+        }}
+        onGuestAccess={() => {
+          const guestUser: UserProfile = {
+            name: "Guest Learner",
+            email: "guest@openshelf.local",
+            role: "guest",
+            avatarInitials: "GL",
+          }
+          setUser(guestUser)
+          flash("Exploring OpenShelf in Guest Mode (Read-Only)")
         }}
         theme={theme}
       />
@@ -906,7 +977,17 @@ export default function App() {
             onOpenReader={openReader}
             onOpenResource={openResource}
             onSelectModTab={setModTab}
-            onSwitchToModerator={() => setUser({ ...user, role: "moderator" })}
+            onUpgradeWithPasskey={async (passkey) => {
+              try {
+                const res = await api.upgradeRole(passkey)
+                setUser(res.user)
+                flash("Moderator privileges verified & unlocked!")
+                return true
+              } catch (err: any) {
+                flash(err.message || "Invalid passkey")
+                return false
+              }
+            }}
           />
         )
 
@@ -957,6 +1038,17 @@ export default function App() {
             }}
             onTogglePref={(k) => setPrefs((p) => ({ ...p, [k]: !p[k] }))}
             onUpdateUserName={(name) => setUser({ ...user, name })}
+            onUpgradeToModerator={async (passkey) => {
+              try {
+                const res = await api.upgradeRole(passkey)
+                setUser(res.user)
+                flash("Moderator privileges verified & unlocked!")
+                return true
+              } catch (err: any) {
+                flash(err.message || "Invalid passkey")
+                return false
+              }
+            }}
             prefs={prefs}
             theme={theme}
             user={user}
@@ -1079,21 +1171,34 @@ export default function App() {
                 <Icon name="close" size={16} />
               </button>
             </div>
-            {notes.slice(0, 3).map((note) => (
+            {notes.length === 0 ? (
               <div
-                className={`notification ${note.read ? "" : "unread"}`}
-                key={note.id}
+                style={{
+                  padding: "20px 14px",
+                  color: "var(--text-3)",
+                  fontSize: "var(--fs-sm)",
+                  textAlign: "center",
+                }}
               >
-                <span className={`notification-icon ${note.tone}`}>
-                  <Icon name={note.icon} size={17} />
-                </span>
-                <div>
-                  <strong>{note.title}</strong>
-                  <p>{note.body}</p>
-                  <small>{note.when}</small>
-                </div>
+                No new notifications
               </div>
-            ))}
+            ) : (
+              notes.slice(0, 3).map((note) => (
+                <div
+                  className={`notification ${note.read ? "" : "unread"}`}
+                  key={note.id}
+                >
+                  <span className={`notification-icon ${note.tone}`}>
+                    <Icon name={note.icon} size={17} />
+                  </span>
+                  <div>
+                    <strong>{note.title}</strong>
+                    <p>{note.body}</p>
+                    <small>{note.when}</small>
+                  </div>
+                </div>
+              ))
+            )}
             <button
               className="view-all"
               onClick={() => selectView("Notifications")}
@@ -1207,7 +1312,9 @@ export default function App() {
           onSubmitReport={async (reason, details) => {
             const rateCheck = checkClientRateLimit("report", 3000)
             if (!rateCheck.allowed) {
-              flash(`Please wait ${rateCheck.remainingSeconds}s before submitting a report`)
+              flash(
+                `Please wait ${rateCheck.remainingSeconds}s before submitting a report`,
+              )
               return
             }
             try {

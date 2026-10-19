@@ -47,11 +47,12 @@ export function Topbar({
   const [showUserMenu, setShowUserMenu] = useState(false)
 
   const quickSuggestions = [
-    { label: "Data Structures", type: "Topic", icon: "code" as const },
-    { label: "Organic Chemistry", type: "Subject", icon: "science" as const },
-    { label: "Calculus II", type: "Topic", icon: "calculate" as const },
-    { label: "Exam prep", type: "Tag", icon: "bookmark" as const },
-    { label: "Beginner", type: "Level", icon: "school" as const },
+    { label: "Computer Science", type: "Subject", icon: "code" as const },
+    { label: "Mathematics", type: "Subject", icon: "calculate" as const },
+    { label: "Chemistry", type: "Subject", icon: "science" as const },
+    { label: "Psychology", type: "Subject", icon: "psychology" as const },
+    { label: "History", type: "Subject", icon: "history" as const },
+    { label: "Study Skills", type: "Subject", icon: "school" as const },
   ]
 
   const filteredSuggestions = query.trim()

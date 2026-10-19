@@ -1,0 +1,84 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "OpenShelfDynamoDbAccess",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:Scan",
+        "dynamodb:Query",
+        "dynamodb:DescribeTable",
+        "dynamodb:CreateTable",
+        "dynamodb:ListTables"
+      ],
+      "Resource": [
+        "arn:aws:dynamodb:*:*:table/OpenShelf-*"
+      ]
+    },
+    {
+      "Sid": "OpenShelfS3Access",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:DeleteObject",
+        "s3:ListBucket",
+        "s3:CreateBucket",
+        "s3:PutBucketCors",
+        "s3:PutBucketEncryption",
+        "s3:PutBucketPolicy",
+        "s3:PutPublicAccessBlock"
+      ],
+      "Resource": [
+        "arn:aws:s3:::openshelf-learning-files*",
+        "arn:aws:s3:::openshelf-learning-files*/*"
+      ]
+    },
+    {
+      "Sid": "OpenShelfSnsAccess",
+      "Effect": "Allow",
+      "Action": [
+        "sns:Publish",
+        "sns:Subscribe",
+        "sns:CreateTopic",
+        "sns:ListTopics",
+        "sns:ListSubscriptionsByTopic"
+      ],
+      "Resource": [
+        "arn:aws:sns:*:*:OpenShelf-*"
+      ]
+    },
+    {
+      "Sid": "OpenShelfCloudWatchAccess",
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:PutMetricData",
+        "cloudwatch:GetMetricData",
+        "cloudwatch:ListMetrics",
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents",
+        "logs:DescribeLogStreams"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "OpenShelfCognitoAccess",
+      "Effect": "Allow",
+      "Action": [
+        "cognito-idp:SignUp",
+        "cognito-idp:ConfirmSignUp",
+        "cognito-idp:InitiateAuth",
+        "cognito-idp:AdminGetUser",
+        "cognito-idp:CreateUserPool",
+        "cognito-idp:CreateUserPoolClient",
+        "cognito-idp:ListUserPools"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

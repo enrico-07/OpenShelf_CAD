@@ -1,10 +1,11 @@
 import type { Response } from "express"
 import type { AuthenticatedRequest } from "../security/middleware.ts"
 import { sanitizeText, validateReportInput } from "../security/validation.ts"
-import { items } from "./resourceController.ts"
+import { dynamoDbService } from "../services/dynamoDbService.ts"
+import { notifyModerationAction } from "../aws/snsClient.ts"
 import type { Status } from "../types.ts"
 
-export const submitReport = (req: AuthenticatedRequest, res: Response) => {
+export const submitReport = async (req: AuthenticatedRequest, res: Response) => {
   const resourceId = parseInt(req.params.id, 10)
   if (isNaN(resourceId)) {
     return res.status(400).json({
@@ -23,8 +24,12 @@ export const submitReport = (req: AuthenticatedRequest, res: Response) => {
     })
   }
 
-  const target = items.find((it) => it.id === resourceId)
-  if (!target) {
+  const cleanReason = sanitizeText(req.body.reason)
+  const cleanDetails = sanitizeText(req.body.details || "")
+  const fullReason = cleanDetails ? `${cleanReason}: ${cleanDetails}` : cleanReason
+
+  const updated = await dynamoDbService.updateResourceStatus(resourceId, "reported", fullReason)
+  if (!updated) {
     return res.status(404).json({
       success: false,
       error: "NotFound",
@@ -32,19 +37,13 @@ export const submitReport = (req: AuthenticatedRequest, res: Response) => {
     })
   }
 
-  const cleanReason = sanitizeText(req.body.reason)
-  const cleanDetails = sanitizeText(req.body.details || "")
-
-  target.status = "reported"
-  target.reportReason = cleanDetails ? `${cleanReason}: ${cleanDetails}` : cleanReason
-
   return res.status(200).json({
     success: true,
     message: "Report received. A community moderator will review the resource.",
   })
 }
 
-export const getModerationQueue = (req: AuthenticatedRequest, res: Response) => {
+export const getModerationQueue = async (req: AuthenticatedRequest, res: Response) => {
   // Only moderators can access the full queue
   if (!req.user || req.user.role !== "moderator") {
     return res.status(403).json({
@@ -54,23 +53,24 @@ export const getModerationQueue = (req: AuthenticatedRequest, res: Response) => 
     })
   }
 
-  const queue = items.filter(
-    (it) => it.status === "pending" || it.status === "reported",
+  const allItems = await dynamoDbService.getResources({ isModerator: true })
+  const queue = allItems.filter(
+    (it) => it.status === "pending" || it.status === "reported"
   )
 
   return res.status(200).json({
     success: true,
     data: queue,
     counts: {
-      pending: items.filter((i) => i.status === "pending").length,
-      reported: items.filter((i) => i.status === "reported").length,
-      approved: items.filter((i) => i.status === "approved").length,
-      rejected: items.filter((i) => i.status === "rejected").length,
+      pending: allItems.filter((i) => i.status === "pending").length,
+      reported: allItems.filter((i) => i.status === "reported").length,
+      approved: allItems.filter((i) => i.status === "approved").length,
+      rejected: allItems.filter((i) => i.status === "rejected").length,
     },
   })
 }
 
-export const moderateResource = (req: AuthenticatedRequest, res: Response) => {
+export const moderateResource = async (req: AuthenticatedRequest, res: Response) => {
   // Enforce moderator authorization
   if (!req.user || req.user.role !== "moderator") {
     return res.status(403).json({
@@ -98,8 +98,8 @@ export const moderateResource = (req: AuthenticatedRequest, res: Response) => {
     })
   }
 
-  const target = items.find((it) => it.id === resourceId)
-  if (!target) {
+  const updated = await dynamoDbService.updateResourceStatus(resourceId, status)
+  if (!updated) {
     return res.status(404).json({
       success: false,
       error: "NotFound",
@@ -107,14 +107,16 @@ export const moderateResource = (req: AuthenticatedRequest, res: Response) => {
     })
   }
 
-  target.status = status
-  if (status === "approved") {
-    target.reportReason = undefined
-  }
+  // Dispatch Amazon SNS moderation notification
+  notifyModerationAction(
+    updated.title,
+    status as "approved" | "rejected" | "reported",
+    sanitizeText(req.body.note || updated.reportReason || "")
+  ).catch((err) => console.warn(`[SNS] Background moderation alert error: ${err.message}`))
 
   return res.status(200).json({
     success: true,
     message: `Resource marked as ${status}.`,
-    data: target,
+    data: updated,
   })
 }

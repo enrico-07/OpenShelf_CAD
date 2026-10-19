@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { UserProfile, NotificationPreferences, ThemePref } from "../types"
 import { SectionHead } from "../components/common/SectionHead"
 import { Button } from "../components/common/Button"
@@ -11,6 +12,7 @@ export function SettingsView({
   user,
   onUpdateUserName,
   onSaveSettings,
+  onUpgradeToModerator,
   onSignOut,
 }: {
   theme: {
@@ -23,8 +25,37 @@ export function SettingsView({
   user: UserProfile
   onUpdateUserName: (name: string) => void
   onSaveSettings: () => void
+  onUpgradeToModerator?: (passkey: string) => Promise<boolean>
   onSignOut: () => void
 }) {
+  const [passkey, setPasskey] = useState("")
+  const [passkeyMsg, setPasskeyMsg] = useState<{
+    type: "error" | "success"
+    text: string
+  } | null>(null)
+  const [isUpgrading, setIsUpgrading] = useState(false)
+
+  const handleUpgrade = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!passkey.trim() || !onUpgradeToModerator) return
+    setIsUpgrading(true)
+    setPasskeyMsg(null)
+    const success = await onUpgradeToModerator(passkey.trim())
+    setIsUpgrading(false)
+    if (success) {
+      setPasskeyMsg({
+        type: "success",
+        text: "Successfully upgraded to Community Moderator!",
+      })
+      setPasskey("")
+    } else {
+      setPasskeyMsg({
+        type: "error",
+        text: "Invalid Moderator Security Key. Access denied.",
+      })
+    }
+  }
+
   return (
     <div className="settings">
       <section className="table-card settings-wide">
@@ -102,6 +133,76 @@ export function SettingsView({
 
       <section className="table-card">
         <SectionHead title="Profile & security" />
+
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+            marginBottom: "16px",
+            padding: "10px 14px",
+            background: "var(--surface-sunken)",
+            borderRadius: "var(--radius-md)",
+            border: "1px solid var(--border-color)",
+          }}
+        >
+          <Icon
+            name={
+              user.role === "moderator"
+                ? "shield"
+                : user.role === "guest"
+                  ? "compass"
+                  : "user"
+            }
+            size={20}
+          />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: "var(--fs-sm)", fontWeight: 600 }}>
+              {user.email || "No email assigned"}
+            </div>
+            <div
+              style={{
+                fontSize: "var(--fs-xs)",
+                color: "var(--text-3)",
+                textTransform: "capitalize",
+              }}
+            >
+              Active Role:{" "}
+              <strong
+                style={{
+                  color:
+                    user.role === "moderator"
+                      ? "var(--accent-text)"
+                      : "inherit",
+                }}
+              >
+                {user.role === "moderator"
+                  ? "Community Moderator"
+                  : user.role === "guest"
+                    ? "Anonymous Guest (Read-Only)"
+                    : "Learner & Contributor"}
+              </strong>
+            </div>
+          </div>
+        </div>
+
+        {user.role === "guest" && (
+          <div
+            style={{
+              padding: "10px 12px",
+              background: "rgba(234, 179, 8, 0.1)",
+              border: "1px solid rgba(234, 179, 8, 0.3)",
+              borderRadius: "var(--radius-md)",
+              fontSize: "var(--fs-xs)",
+              color: "var(--text-2)",
+              marginBottom: "16px",
+            }}
+          >
+            You are browsing in guest mode. Sign out and create an account to
+            unlock permanent cloud storage and resource publishing.
+          </div>
+        )}
+
         <label className="form-field">
           <span>Display name</span>
           <input
@@ -109,6 +210,7 @@ export function SettingsView({
             value={user.name}
           />
         </label>
+
         <label className="form-field">
           <span>Default license for uploads</span>
           <select defaultValue={licenses[0]}>
@@ -117,7 +219,85 @@ export function SettingsView({
             ))}
           </select>
         </label>
-        <div className="row-actions">
+
+        {user.role !== "moderator" && onUpgradeToModerator && (
+          <div
+            style={{
+              marginTop: "16px",
+              padding: "14px",
+              background: "var(--surface-sunken)",
+              borderRadius: "var(--radius-md)",
+              border: "1px solid var(--border-color)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                marginBottom: "6px",
+              }}
+            >
+              <Icon name="shield" size={16} />
+              <strong style={{ fontSize: "var(--fs-sm)" }}>
+                Institutional Moderator Authorization
+              </strong>
+            </div>
+            <p
+              style={{
+                fontSize: "var(--fs-xs)",
+                color: "var(--text-2)",
+                margin: "0 0 10px",
+              }}
+            >
+              Have an institutional moderation key? Enter it below to unlock the
+              community review queue.
+            </p>
+
+            {passkeyMsg && (
+              <div
+                style={{
+                  color: passkeyMsg.type === "success" ? "#22c55e" : "#ef4444",
+                  fontSize: "var(--fs-xs)",
+                  marginBottom: "8px",
+                }}
+              >
+                {passkeyMsg.text}
+              </div>
+            )}
+
+            <form
+              onSubmit={handleUpgrade}
+              style={{ display: "flex", gap: "8px" }}
+            >
+              <input
+                type="password"
+                placeholder="Moderator Key (Demo: OPENSHELF_MOD_2026)"
+                value={passkey}
+                onChange={(e) => setPasskey(e.target.value)}
+                style={{
+                  flex: 1,
+                  padding: "6px 10px",
+                  fontSize: "var(--fs-xs)",
+                  borderRadius: "var(--radius-md)",
+                  border: "1px solid var(--border-color)",
+                  background: "var(--surface-color)",
+                  color: "var(--text-color)",
+                }}
+              />
+              <Button
+                className="secondary-button"
+                icon={isUpgrading ? "clock" : "shield"}
+                type="submit"
+                disabled={isUpgrading || !passkey.trim()}
+              >
+                {isUpgrading ? "Verifying..." : "Upgrade"}
+              </Button>
+            </form>
+          </div>
+        )}
+
+        <div className="row-actions" style={{ marginTop: "20px" }}>
           <Button className="secondary-button" onClick={onSaveSettings}>
             Save changes
           </Button>

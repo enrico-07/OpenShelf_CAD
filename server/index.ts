@@ -8,12 +8,16 @@ import {
   errorHandler,
 } from "./security/middleware.ts"
 import { globalRateLimiter } from "./security/rateLimiters.ts"
+import { telemetryMiddleware } from "./aws/telemetryMiddleware.ts"
 import apiRoutes from "./routes/api.ts"
 
 const app = express()
 
 // Trust first proxy if behind reverse proxy/load balancer
 app.set("trust proxy", 1)
+
+// 0. CloudWatch Live Telemetry Tracker
+app.use(telemetryMiddleware)
 
 // 1. Security Headers via Helmet
 app.use(helmetMiddleware)

@@ -7,7 +7,9 @@ import {
 import {
   loginUser,
   registerUser,
+  confirmUser,
   getCurrentUser,
+  upgradeRole,
 } from "../controllers/authController.ts"
 import {
   getResources,
@@ -18,11 +20,13 @@ import {
   getFeedback,
   submitFeedback,
   replyFeedback,
+  getPresignedUploadUrl,
   getPresignedDownloadUrl,
   getCollections,
   createCollection,
   getNotes,
   markNoteRead,
+  subscribeToNotifications,
 } from "../controllers/resourceController.ts"
 import {
   submitReport,
@@ -30,10 +34,11 @@ import {
   moderateResource,
 } from "../controllers/moderationController.ts"
 import { requireRole } from "../security/middleware.ts"
+import { getTelemetrySummary } from "../aws/cloudwatchClient.ts"
 
 const router = Router()
 
-/** System Health Check (Safe - reveals no secrets or sensitive stack) */
+/** System Health & CloudWatch Telemetry Check */
 router.get("/health", (_req, res) => {
   res.status(200).json({
     status: "healthy",
@@ -43,13 +48,24 @@ router.get("/health", (_req, res) => {
   })
 })
 
+router.get("/telemetry/metrics", async (_req, res) => {
+  const telemetry = await getTelemetrySummary()
+  res.status(200).json({
+    success: true,
+    data: telemetry,
+  })
+})
+
 /** Authentication Endpoints with Auth Rate Limiting */
 router.post("/auth/login", authRateLimiter, loginUser)
 router.post("/auth/register", authRateLimiter, registerUser)
+router.post("/auth/confirm", authRateLimiter, confirmUser)
+router.post("/auth/upgrade-role", actionRateLimiter, upgradeRole)
 router.get("/auth/me", getCurrentUser)
 
 /** Resource Endpoints */
 router.get("/resources", getResources)
+router.get("/resources/upload-url", uploadRateLimiter, getPresignedUploadUrl)
 router.get("/resources/:id", getResourceById)
 router.post("/resources", uploadRateLimiter, uploadResource)
 router.post("/resources/:id/revisions", uploadRateLimiter, uploadRevision)
@@ -72,8 +88,9 @@ router.post("/moderation/:id", requireRole("moderator"), moderateResource)
 router.get("/collections", getCollections)
 router.post("/collections", actionRateLimiter, createCollection)
 
-/** Notifications */
+/** Notifications & Amazon SNS */
 router.get("/notes", getNotes)
 router.put("/notes/:id/read", markNoteRead)
+router.post("/notifications/subscribe", actionRateLimiter, subscribeToNotifications)
 
 export default router

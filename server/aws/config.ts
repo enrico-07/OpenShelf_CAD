@@ -74,7 +74,7 @@ export const awsConfig: AwsConfig = {
       : undefined,
   isConfigured,
   s3: {
-    bucketName: process.env.AWS_S3_BUCKET_NAME || "openshelf-learning-files",
+    bucketName: process.env.AWS_S3_BUCKET_NAME || "openshelf-learning-files-926642724952",
     presignedExpirySeconds: parseInt(process.env.AWS_S3_PRESIGNED_EXPIRY || "900", 10), // 15 mins
   },
   dynamoDb: {

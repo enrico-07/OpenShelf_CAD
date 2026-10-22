@@ -551,6 +551,7 @@ export default function App() {
             )
           } catch (uploadErr: any) {
             console.warn("[S3 Revision Upload Notice]:", uploadErr.message)
+            flash(`Revision created, but S3 sync notice: ${uploadErr.message}`)
           }
         }
 
@@ -623,8 +624,10 @@ export default function App() {
             console.log(
               `[S3] Streamed file to ${presigned.bucket}/${presigned.s3Key}`,
             )
+            flash("Resource & PDF file successfully uploaded to Amazon S3!")
           } catch (uploadErr: any) {
             console.warn("[S3 Upload Notice]:", uploadErr.message)
+            flash(`Uploaded metadata, but S3 sync notice: ${uploadErr.message}`)
           }
         }
 

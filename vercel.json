@@ -5,11 +5,15 @@
   "buildCommand": "npm run build",
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "http://32.197.235.108:5000/api/$1"
+      "source": "/api",
+      "destination": "/api/proxy.js"
     },
     {
-      "source": "/(.*)",
+      "source": "/api/:path*",
+      "destination": "/api/proxy.js?__path=:path*"
+    },
+    {
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ],

@@ -5,6 +5,10 @@
   "buildCommand": "npm run build",
   "rewrites": [
     {
+      "source": "/api/(.*)",
+      "destination": "http://32.197.235.108:5000/api/$1"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

@@ -273,3 +273,341 @@ export function getFallbackTranslations(texts: string[], targetLang: string): st
     return translated
   })
 }
+
+// ==============================================================================
+// Phonetic Speech Transliteration for Amazon Polly & Multilingual Voice Synthesis
+// Converts Indic Unicode scripts (Tamil & Malayalam) into natural phonetic Latin
+// so AWS Polly and browser speech synthesis engines speak seamlessly without stopping.
+// ==============================================================================
+
+const TAMIL_PHONETICS: [string, string][] = [
+  [
+    "அத்தியாயம் 1: அடிப்படைக் கருத்துக்கள் மற்றும் சிக்கலின் நோக்கம்",
+    "Athiyayam ondru: Adippadai karuthukkal matrum sikkalin nokkam.",
+  ],
+  [
+    "அத்தியாயம் 2: முதன்மை வழிமுறைகள் மற்றும் படிமுறை விளக்கம்",
+    "Athiyayam irandu: Mudhanmai vazhimuraigal matrum padimurai vilakkam.",
+  ],
+  [
+    "அத்தியாயம் 3: நடைமுறைப் பயிற்சிகள், வழக்கு ஆய்வுகள் மற்றும் தீர்வுகள்",
+    "Athiyayam moondru: Nadaimurai payirchigal, vazhakku aaivugal matrum theervugal.",
+  ],
+  [
+    "வழங்குகிறது ஒரு முறையான வழிகாட்டல்",
+    "valangugiradhu oru muraiyaana vazhikaattal",
+  ],
+  [
+    "கற்பவர்களுக்காக சிறப்பாக வடிவமைக்கப்பட்டது",
+    "karpabargalukkaaga sirappaga vadivamaikkappattadhu",
+  ],
+  [
+    "இந்த கற்றல் வளமானது அடிப்படைக் கோட்பாடுகள்",
+    "Indha katral valamaanadhu adippadaik kotpaadugal",
+  ],
+  [
+    "கல்வி மரபுகள் மற்றும் சரிபார்க்கப்பட்ட நடைமுறைப் பயன்பாடுகளை ஒருங்கிணைக்கிறது",
+    "kalvi marabugal matrum saripaarkkappatta nadaimurai payanpaadugalai orunginaikkiradhu",
+  ],
+  [
+    "சமூக பதிப்புக் கட்டுப்பாட்டின் மூலம் இது தொடர்ந்து பராமரிக்கப்பட்டு புதுப்பிக்கப்படுகிறது",
+    "Samooga padhippuk kattuppaattin moolam idhu thodarnthu paraamarikkappattu pudhuppikkappadugiradhu",
+  ],
+  [
+    "முக்கிய கற்றல் முடிவுகளில் துல்லியமான வரையறைகளை நிறுவுதல்",
+    "Mukkiya katral mudivugalil thulliyamaana varaiyaraigalai niruvudhal",
+  ],
+  [
+    "அல்காரிதக் கட்டமைப்பை வரைபடமாக்குதல் மற்றும் தேர்வு வினாக்களில் பொதுவான தவறுகளைக் கண்டறிதல் ஆகியவை அடங்கும்",
+    "algoorithak kattamaippai varaipadamaakkudhal matrum thervu vinaakkalil podhuvaana thavarugalai kandaridhal aagiyavai adangum",
+  ],
+  [
+    "இந்த பிரிவில், நாம் உறுப்புப் பகுதிகளையும் அதன் செயல்பாட்டு வழிமுறைகளையும் ஆராய்வோம்",
+    "Indha pirivil, naam uruppup pagudhigalaiyum adhan seyalpaattu vazhimuraigalaiyum aaraaivom",
+  ],
+  [
+    "சில விதிகள் ஏன் பொருந்தும் என்பதைப் புரிந்துகொள்வது வரிசைமுறையைப் பின்பற்றுவதைச் சார்ந்துள்ளது",
+    "Sila vidhigal aen porundhum enbadhaip purindhukolvadhu varisaimuraiyaip pinpatruvadhai saarndhulladhu",
+  ],
+  [
+    "படிப்பு வழிகாட்டியில் சிறப்பிக்கப்பட்டுள்ள குறிப்புகள் மற்றும் சூத்திரங்களை கவனமாகச் சரிபார்க்கவும்",
+    "Padippu vazhikaattiyil sirappikkappattulla kurippugal matrum soothirangalai kavanamaagach saripaarkkavum",
+  ],
+  [
+    "கீழே உள்ள பயிற்சி வினாக்களை மதிப்பாய்வு செய்து பதில்களைச் சரிபார்க்கவும்",
+    "Keezhae ulla payirchi vinaakkalai madhippaaivu seidhu badhilgalaich saripaarkkavum",
+  ],
+  [
+    "விரிவான ஆய்வைத் தொடர்கிறது பக்கம்",
+    "Virivaana aaivait thodargiradhu pakkam",
+  ],
+  ["கணினி அறிவியல்", "Ganini Ariviyal"],
+  ["படிப்பு வழிகாட்டி", "Padippu Vazhikaatti"],
+  ["குறிப்புகள்", "Kurippugal"],
+  ["தேர்வு தயாரிப்பு", "Thervu Thayaarippu"],
+  ["குறிப்பேடு", "Kurippaedu"],
+]
+
+const MALAYALAM_PHONETICS: [string, string][] = [
+  [
+    "അധ്യായം 1: അടിസ്ഥാനപരമായ ആശയങ്ങളും പ്രശ്ന വ്യാപ്തിയും",
+    "Adhyayam onnu: Adisthanaparamaaya aashayangalum prashna vyaapthiyum.",
+  ],
+  [
+    "അധ്യായം 2: പ്രധാന രീതിശാസ്ത്രവും ഘട്ടം ഘട്ടമായുള്ള വിശദീകരണവും",
+    "Adhyayam randu: Pradhaana reethisasthravum ghattam ghattamaayulla vishadheekaranavum.",
+  ],
+  [
+    "അധ്യായം 3: പ്രായോഗിക പരിശീലനങ്ങൾ, കേസ് സ്റ്റഡികൾ, പരിഹാരങ്ങൾ",
+    "Adhyayam moonnu: Praayogika parisheelanangal, case studikal, pariharangal.",
+  ],
+  [
+    "നൽകുന്നു ഒരു ചിട്ടയായ പഠന സഹായി",
+    "nalkunnu oru chittayaaya padhana sahaayi",
+  ],
+  [
+    "പഠിതാക്കൾക്കായി പ്രത്യേകം രൂപകൽപ്പന ചെയ്തത്",
+    "padhithaakkalkkaayi prathyekam roopakalpana cheythathu",
+  ],
+  [
+    "ഈ പഠന വിഭവം അടിസ്ഥാന തത്വങ്ങൾ",
+    "Ee padhana vibhavam adisthaana thathwangal",
+  ],
+  [
+    "അക്കാദമിക് മാനദണ്ഡങ്ങൾ, പരിശോധിച്ച യഥാർത്ഥ പ്രയോഗങ്ങൾ എന്നിവ സമന്വയിപ്പിക്കുന്നു",
+    "academic maanadhandangal, parishodhicha yathaartha prayogangal enniva samanwayippikkunnu",
+  ],
+  [
+    "കമ്മ്യൂണിറ്റി പതിപ്പ് നിയന്ത്രണത്തിലൂടെ ഇത് നിരന്തരം പുതുക്കപ്പെടുന്നു",
+    "Community pathippu niyanthranathiloode ithu nirantharam puthukkappadunnu",
+  ],
+  [
+    "പ്രധാന പഠന നേട്ടങ്ങളിൽ കൃത്യമായ നിർവചനങ്ങൾ സ്ഥാപിക്കൽ",
+    "Pradhaana padhana nettangalil krithyamaaya nirvachhanangal sthaapikkal",
+  ],
+  [
+    "അൽഗോരിത ഘടനകൾ തിരിച്ചറിയൽ, പരീക്ഷാ ചോദ്യങ്ങളിലെ സാധ്യതയുള്ള പിശകുകൾ കണ്ടെത്തൽ എന്നിവ ഉൾപ്പെടുന്നു",
+    "algoritha ghadanakal thirichariyal, pareeksha chodyangalile saadhyathayulla pishakukal kandethal enniva ulppedunnu",
+  ],
+  [
+    "ഈ ഭാഗത്ത്, ഞങ്ങൾ ഘടകഭാഗങ്ങളെയും പരിവർത്തന സംവിധാനങ്ങളെയും പരിശോധിക്കുന്നു",
+    "Ee bhaagathu, njangal ghadakabhaagangaleyum parivarthana samvidhaanangaleyum parishodhikkunnu",
+  ],
+  [
+    "ചില നിയമങ്ങൾ എന്തുകൊണ്ട് ബാധകമാകുന്നുവെന്ന്",
+    "chila niyamangal enthukondu baadhakamaagunnuvennu",
+  ],
+  [
+    "പഠന സഹായിയിൽ എടുത്തുകാണിച്ചിരിക്കുന്ന റഫറൻസുകളും സൂത്രവാക്യങ്ങളും ശ്രദ്ധാപൂർവ്വം താരതമ്യം ചെയ്യുക",
+    "Padhana sahaayiyil eduthukaanichirikkunna referencesum soothravaakyangalum shraddhaapoorvam tharathamyam cheyyuka",
+  ],
+  [
+    "താഴെയുള്ള പരിശീലന ചോദ്യങ്ങൾ അവലോകനം ചെയ്ത് ഉത്തരങ്ങൾ പരിശോധിക്കുക",
+    "Thazheyulla parisheelana chodyangal avalokanam cheythu uthharangal parishodhikkuka",
+  ],
+  ["വിശദമായ വിശകലനം തുടരുന്നു പേജ്", "Vishadhamaaya vishakalanam thudarunnu page"],
+  ["കമ്പ്യൂട്ടർ സയൻസ്", "Computer Science"],
+  ["പഠന സഹായി", "Padhana Sahaayi"],
+  ["കുറിപ്പുകൾ", "Kurippukal"],
+  ["പരീക്ഷാ തയ്യാറെടുപ്പ്", "Pareeksha Thayaaredippu"],
+  ["ചീറ്റ് ഷീറ്റ്", "Cheat Sheet"],
+]
+
+function transliterateTamilScript(input: string): string {
+  const vowels: Record<string, string> = {
+    "அ": "a",
+    "ஆ": "aa",
+    "இ": "i",
+    "ஈ": "ee",
+    "உ": "u",
+    "ஊ": "oo",
+    "எ": "e",
+    "ஏ": "ae",
+    "ஐ": "ai",
+    "ஒ": "o",
+    "ஓ": "oa",
+    "ஔ": "au",
+  }
+  const consonants: Record<string, string> = {
+    "க": "k",
+    "ங": "ng",
+    "ச": "ch",
+    "ஞ": "ny",
+    "ட": "d",
+    "ண": "n",
+    "த": "th",
+    "ந": "n",
+    "ப": "p",
+    "ம": "m",
+    "ய": "y",
+    "ர": "r",
+    "ல": "l",
+    "வ": "v",
+    "ழ": "zh",
+    "ள": "l",
+    "ற": "r",
+    "ன": "n",
+    "ஜ": "j",
+    "ஷ": "sh",
+    "ஸ": "s",
+    "ஹ": "h",
+  }
+  const signs: Record<string, string> = {
+    "ா": "aa",
+    "ி": "i",
+    "ீ": "ee",
+    "ு": "u",
+    "ூ": "oo",
+    "ெ": "e",
+    "ே": "ae",
+    "ை": "ai",
+    "ொ": "o",
+    "ோ": "oa",
+    "ௌ": "au",
+  }
+  let out = ""
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i]
+    if (vowels[ch]) {
+      out += vowels[ch]
+    } else if (consonants[ch]) {
+      const next = input[i + 1]
+      if (next === "\u0BCD") {
+        out += consonants[ch]
+        i++
+      } else if (next && signs[next]) {
+        out += consonants[ch] + signs[next]
+        i++
+      } else {
+        out += consonants[ch] + "a"
+      }
+    } else if (ch >= "\u0B80" && ch <= "\u0BFF") {
+      // skip unhandled marks
+    } else {
+      out += ch
+    }
+  }
+  return out
+}
+
+function transliterateMalayalamScript(input: string): string {
+  const vowels: Record<string, string> = {
+    "അ": "a",
+    "ആ": "aa",
+    "ഇ": "i",
+    "ഈ": "ee",
+    "ഉ": "u",
+    "ഊ": "oo",
+    "ഋ": "ri",
+    "എ": "e",
+    "ഏ": "ae",
+    "ഐ": "ai",
+    "ഒ": "o",
+    "ഓ": "oa",
+    "ഔ": "au",
+  }
+  const consonants: Record<string, string> = {
+    "ക": "k",
+    "ഖ": "kh",
+    "ഗ": "g",
+    "ഘ": "gh",
+    "ങ": "ng",
+    "ച": "ch",
+    "ഛ": "chh",
+    "ജ": "j",
+    "ഝ": "jh",
+    "ഞ": "ny",
+    "ട": "t",
+    "ഠ": "th",
+    "ഡ": "d",
+    "ഢ": "dh",
+    "ണ": "n",
+    "ത": "th",
+    "ഥ": "th",
+    "ദ": "d",
+    "ധ": "dh",
+    "ന": "n",
+    "പ": "p",
+    "ഫ": "ph",
+    "ബ": "b",
+    "ഭ": "bh",
+    "മ": "m",
+    "യ": "y",
+    "ര": "r",
+    "ല": "l",
+    "വ": "v",
+    "ശ": "sh",
+    "ഷ": "sh",
+    "സ": "s",
+    "ഹ": "h",
+    "ള": "l",
+    "ഴ": "zh",
+    "റ": "r",
+  }
+  const signs: Record<string, string> = {
+    "ാ": "aa",
+    "ി": "i",
+    "ീ": "ee",
+    "ു": "u",
+    "ൂ": "oo",
+    "ൃ": "ri",
+    "െ": "e",
+    "േ": "ae",
+    "ൈ": "ai",
+    "ൊ": "o",
+    "ോ": "oa",
+    "ൌ": "au",
+    "ൗ": "au",
+  }
+  let out = ""
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i]
+    if (vowels[ch]) {
+      out += vowels[ch]
+    } else if (consonants[ch]) {
+      const next = input[i + 1]
+      if (next === "\u0D4D") {
+        out += consonants[ch]
+        i++
+      } else if (next && signs[next]) {
+        out += consonants[ch] + signs[next]
+        i++
+      } else {
+        out += consonants[ch] + "a"
+      }
+    } else if (ch === "\u0D02") {
+      out += "m"
+    } else if (ch >= "\u0D00" && ch <= "\u0D7F") {
+      // skip unhandled marks
+    } else {
+      out += ch
+    }
+  }
+  return out
+}
+
+/**
+ * Converts text into phonetically pronounceable speech text for AWS Polly & TTS
+ */
+export function getPhoneticSpeechText(text: string, lang: string): string {
+  if (!text) return ""
+  if (lang === "ta") {
+    let result = text
+    for (const [tamil, phonetic] of TAMIL_PHONETICS) {
+      if (result.includes(tamil)) {
+        result = result.split(tamil).join(phonetic)
+      }
+    }
+    return transliterateTamilScript(result)
+  }
+  if (lang === "ml") {
+    let result = text
+    for (const [malayalam, phonetic] of MALAYALAM_PHONETICS) {
+      if (result.includes(malayalam)) {
+        result = result.split(malayalam).join(phonetic)
+      }
+    }
+    return transliterateMalayalamScript(result)
+  }
+  return text
+}

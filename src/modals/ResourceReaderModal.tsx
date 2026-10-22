@@ -4,7 +4,10 @@ import { Modal } from "../components/common/Modal"
 import { Button } from "../components/common/Button"
 import { Icon } from "../components/common/Icon"
 import api from "../services/api"
-import { getFallbackTranslations } from "../utils/multilingualDictionary"
+import {
+  getFallbackTranslations,
+  getPhoneticSpeechText,
+} from "../utils/multilingualDictionary"
 
 export const SUPPORTED_LANGUAGES = [
   { code: "en", label: "English", flag: "🇺🇸", nativeName: "English" },
@@ -248,7 +251,12 @@ export function ResourceReaderModal({
     stopAudioPlayback()
     setAudioState("loading")
 
-    const fullTextToRead = `${displayContent.heading}. ${displayContent.paragraphs.join(" ")}`
+    const rawText = `${displayContent.heading}. ${displayContent.paragraphs.join(" ")}`
+    const fullTextToRead =
+      currentLang === "ta" || currentLang === "ml"
+        ? getPhoneticSpeechText(rawText, currentLang)
+        : rawText
+
     const cacheKey = `${selected.id}_p${currentPage}_${currentLang}_${gender}`
 
     // Check client-side audio cache
@@ -346,7 +354,10 @@ export function ResourceReaderModal({
       return
     }
 
-    const utterance = new SpeechSynthesisUtterance(text)
+    const speechText =
+      lang === "ta" || lang === "ml" ? getPhoneticSpeechText(text, lang) : text
+
+    const utterance = new SpeechSynthesisUtterance(speechText)
     const langMap: Record<string, string> = {
       en: "en-US",
       es: "es-ES",

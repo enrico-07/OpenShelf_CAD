@@ -13,9 +13,9 @@ export const SUPPORTED_LANGUAGES = [
   { code: "en", label: "English", flag: "🇺🇸", nativeName: "English" },
   { code: "es", label: "Spanish", flag: "🇪🇸", nativeName: "Español" },
   { code: "de", label: "German", flag: "🇩🇪", nativeName: "Deutsch" },
+  { code: "fr", label: "French", flag: "🇫🇷", nativeName: "Français" },
+  { code: "ja", label: "Japanese", flag: "🇯🇵", nativeName: "日本語" },
   { code: "hi", label: "Hindi", flag: "🇮🇳", nativeName: "हिन्दी" },
-  { code: "ta", label: "Tamil", flag: "🇮🇳", nativeName: "தமிழ்" },
-  { code: "ml", label: "Malayalam", flag: "🇮🇳", nativeName: "മലയാളം" },
 ] as const
 
 export type LanguageCode = typeof SUPPORTED_LANGUAGES[number]["code"]
@@ -251,11 +251,7 @@ export function ResourceReaderModal({
     stopAudioPlayback()
     setAudioState("loading")
 
-    const rawText = `${displayContent.heading}. ${displayContent.paragraphs.join(" ")}`
-    const fullTextToRead =
-      currentLang === "ta" || currentLang === "ml"
-        ? getPhoneticSpeechText(rawText, currentLang)
-        : rawText
+    const fullTextToRead = `${displayContent.heading}. ${displayContent.paragraphs.join(" ")}`
 
     const cacheKey = `${selected.id}_p${currentPage}_${currentLang}_${gender}`
 
@@ -354,17 +350,14 @@ export function ResourceReaderModal({
       return
     }
 
-    const speechText =
-      lang === "ta" || lang === "ml" ? getPhoneticSpeechText(text, lang) : text
-
-    const utterance = new SpeechSynthesisUtterance(speechText)
+    const utterance = new SpeechSynthesisUtterance(text)
     const langMap: Record<string, string> = {
       en: "en-US",
       es: "es-ES",
       de: "de-DE",
+      fr: "fr-FR",
+      ja: "ja-JP",
       hi: "hi-IN",
-      ta: "ta-IN",
-      ml: "ml-IN",
     }
     utterance.lang = langMap[lang] || lang
     utterance.rate = 1.0
@@ -567,7 +560,7 @@ export function ResourceReaderModal({
                   voiceGender === "female" ? "active" : ""
                 }`}
                 onClick={() => handleVoiceGenderChange("female")}
-                title="Female Voice (Joanna/Lupe/Aditi/Zira)"
+                title="Female Voice (Joanna/Lupe/Vicki/Celine/Mizuki/Aditi)"
                 type="button"
               >
                 Female
@@ -577,7 +570,7 @@ export function ResourceReaderModal({
                   voiceGender === "male" ? "active" : ""
                 }`}
                 onClick={() => handleVoiceGenderChange("male")}
-                title="Male Voice (Matthew/Hans/David/Arjun)"
+                title="Male Voice (Matthew/Miguel/Hans/Mathieu/Takumi)"
                 type="button"
               >
                 Male

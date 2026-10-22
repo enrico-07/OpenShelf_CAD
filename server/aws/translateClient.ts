@@ -33,9 +33,9 @@ export const SUPPORTED_LANGUAGES = [
   { code: "en", label: "English", flag: "🇺🇸", nativeName: "English" },
   { code: "es", label: "Spanish", flag: "🇪🇸", nativeName: "Español" },
   { code: "de", label: "German", flag: "🇩🇪", nativeName: "Deutsch" },
+  { code: "fr", label: "French", flag: "🇫🇷", nativeName: "Français" },
+  { code: "ja", label: "Japanese", flag: "🇯🇵", nativeName: "日本語" },
   { code: "hi", label: "Hindi", flag: "🇮🇳", nativeName: "हिन्दी" },
-  { code: "ta", label: "Tamil", flag: "🇮🇳", nativeName: "தமிழ்" },
-  { code: "ml", label: "Malayalam", flag: "🇮🇳", nativeName: "മലയാളം" },
 ] as const
 
 export type SupportedLanguageCode = (typeof SUPPORTED_LANGUAGES)[number]["code"]

@@ -34,9 +34,9 @@ export const SUPPORTED_POLLY_VOICES: Record<string, { female: VoiceId; male: Voi
   en: { female: "Joanna", male: "Matthew" },
   es: { female: "Lupe", male: "Miguel" },
   de: { female: "Vicki", male: "Hans" },
+  fr: { female: "Celine", male: "Mathieu" },
+  ja: { female: "Mizuki", male: "Takumi" },
   hi: { female: "Aditi", male: "Matthew" },
-  ta: { female: "Aditi", male: "Matthew" },
-  ml: { female: "Aditi", male: "Matthew" },
 }
 
 function cleanIndicTextForPolly(input: string): string {

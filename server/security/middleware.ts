@@ -43,8 +43,16 @@ export const helmetMiddleware = helmet({
 /** Strict CORS configuration matching allowed client origins */
 export const corsMiddleware = cors({
   origin: (origin, callback) => {
-    // Allow non-browser requests (e.g. mobile, curl) or if origin is whitelisted
-    if (!origin || config.corsOrigins.includes(origin) || config.nodeEnv !== "production") {
+    // Allow non-browser requests, wildcard, whitelisted origins, or any Vercel domain
+    if (
+      !origin ||
+      config.corsOrigins.includes("*") ||
+      config.corsOrigins.includes(origin) ||
+      origin.endsWith(".vercel.app") ||
+      origin.includes("localhost") ||
+      origin.includes("127.0.0.1") ||
+      config.nodeEnv !== "production"
+    ) {
       callback(null, true)
     } else {
       callback(new Error(`CORS policy rejection: Origin ${origin} is not permitted`))

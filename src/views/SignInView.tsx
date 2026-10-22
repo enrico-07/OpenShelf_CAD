@@ -70,9 +70,13 @@ export function SignIn({
         moderatorCode: role === "moderator" ? moderatorCode.trim() : undefined,
       })
     } catch (err: any) {
-      setErrorMessage(
-        err.message || "Authentication failed. Please check your credentials.",
-      )
+      const msg =
+        typeof err?.message === "string" && err.message !== "[object Object]"
+          ? err.message
+          : typeof err === "string"
+            ? err
+            : "Authentication failed. Please check your credentials."
+      setErrorMessage(msg)
     } finally {
       setIsSubmitting(false)
     }
@@ -96,7 +100,13 @@ export function SignIn({
           demoRole === "moderator" ? "OPENSHELF_MOD_2026" : undefined,
       })
     } catch (err: any) {
-      setErrorMessage(err.message || "Failed to start quick demo.")
+      const msg =
+        typeof err?.message === "string" && err.message !== "[object Object]"
+          ? err.message
+          : typeof err === "string"
+            ? err
+            : "Failed to start quick demo."
+      setErrorMessage(msg)
     } finally {
       setIsSubmitting(false)
     }

@@ -488,8 +488,9 @@ export default function App() {
 
   const startUpload = (revisionOf?: number) => {
     if (user?.role === "guest") {
-      flash("Please sign in or create an account to publish materials.")
-      setUser(null)
+      flash(
+        "Guest mode is read-only. Please create an account or sign in to publish study materials.",
+      )
       return
     }
     const parent = items.find((item) => item.id === revisionOf)
@@ -572,7 +573,13 @@ export default function App() {
         })
         flash(`Version ${newVer.number} added to the history`)
       } catch (err: any) {
-        flash(err.message || "Failed to submit revision")
+        const msg =
+          typeof err?.message === "string" && err.message !== "[object Object]"
+            ? err.message
+            : typeof err === "string"
+              ? err
+              : "Failed to submit revision"
+        flash(msg)
       }
     } else {
       try {
@@ -636,7 +643,13 @@ export default function App() {
         }))
         flash("Resource submitted securely for community review")
       } catch (err: any) {
-        flash(err.message || "Failed to submit resource")
+        const msg =
+          typeof err?.message === "string" && err.message !== "[object Object]"
+            ? err.message
+            : typeof err === "string"
+              ? err
+              : "Failed to submit resource"
+        flash(msg)
       }
     }
     setUpload(null)

@@ -34,6 +34,7 @@ export const config: SecurityConfig = {
   corsOrigins: process.env.CORS_ORIGIN
     ? process.env.CORS_ORIGIN.split(",").map((o) => o.trim())
     : [
+        "*",
         "http://localhost:8443",
         "http://127.0.0.1:8443",
         "http://localhost:5173",

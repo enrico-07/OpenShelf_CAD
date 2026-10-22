@@ -452,6 +452,86 @@ class SecureApiClient {
       body: JSON.stringify({ email: sanitizeString(email) }),
     })
   }
+
+  /**
+   * Synthesize speech using Amazon Polly
+   * Returns a playable audio blob URL or indicates client fallback
+   */
+  async synthesizeSpeech(
+    text: string,
+    options?: {
+      voiceId?: string
+      languageCode?: string
+      gender?: "female" | "male"
+    },
+  ): Promise<{ audioUrl?: string; fallback?: boolean; voiceId?: string }> {
+    const url = `${API_BASE_URL}/ai/synthesize-speech`
+    const config: RequestInit = {
+      method: "POST",
+      headers: {
+        ...this.getHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        text,
+        voiceId: options?.voiceId,
+        languageCode: options?.languageCode || "en",
+        gender: options?.gender || "female",
+      }),
+    }
+
+    try {
+      const response = await fetch(url, config)
+      const contentType = response.headers.get("content-type") || ""
+
+      if (contentType.includes("application/json")) {
+        const json = await response.json()
+        if (json.data?.fallback) {
+          return { fallback: true, voiceId: json.data.voiceId }
+        }
+      }
+
+      if (response.ok) {
+        const blob = await response.blob()
+        if (blob.size > 0) {
+          const audioUrl = URL.createObjectURL(blob)
+          return { audioUrl, fallback: false }
+        }
+      }
+
+      return { fallback: true }
+    } catch {
+      return { fallback: true }
+    }
+  }
+
+  /**
+   * Translate text paragraphs using Amazon Translate
+   */
+  async translateContent(
+    texts: string[],
+    targetLanguage: string,
+    sourceLanguage: string = "auto",
+  ): Promise<{
+    translatedTexts: string[]
+    sourceLanguage: string
+    targetLanguage: string
+    isFallback: boolean
+  }> {
+    return this.request<{
+      translatedTexts: string[]
+      sourceLanguage: string
+      targetLanguage: string
+      isFallback: boolean
+    }>("/ai/translate", {
+      method: "POST",
+      body: JSON.stringify({
+        texts,
+        targetLanguage,
+        sourceLanguage,
+      }),
+    })
+  }
 }
 
 export const api = new SecureApiClient()

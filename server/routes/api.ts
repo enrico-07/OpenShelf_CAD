@@ -33,6 +33,10 @@ import {
   getModerationQueue,
   moderateResource,
 } from "../controllers/moderationController.ts"
+import {
+  synthesizeSpeechHandler,
+  translateHandler,
+} from "../controllers/aiController.ts"
 import { requireRole } from "../security/middleware.ts"
 import { getTelemetrySummary } from "../aws/cloudwatchClient.ts"
 
@@ -92,5 +96,9 @@ router.post("/collections", actionRateLimiter, createCollection)
 router.get("/notes", getNotes)
 router.put("/notes/:id/read", markNoteRead)
 router.post("/notifications/subscribe", actionRateLimiter, subscribeToNotifications)
+
+/** AI & Smart Reader Services (Amazon Polly & Amazon Translate) */
+router.post("/ai/synthesize-speech", actionRateLimiter, synthesizeSpeechHandler)
+router.post("/ai/translate", actionRateLimiter, translateHandler)
 
 export default router

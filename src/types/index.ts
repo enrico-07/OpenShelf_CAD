@@ -1,4 +1,4 @@
-export type IconName = "archive" | "arrow" | "bell" | "book" | "bookmark" | "calculate" | "chart" | "check" | "chevron" | "chevron_left" | "clock" | "close" | "code" | "collection" | "compass" | "download" | "filter" | "flag" | "folder" | "heart" | "history" | "layers" | "logout" | "mail" | "menu" | "message" | "monitor" | "moon" | "more" | "plus" | "psychology" | "science" | "school" | "search" | "settings" | "shelves" | "shield" | "star" | "sun" | "upload" | "user" | "users" | "versions"
+export type IconName = "archive" | "arrow" | "bell" | "book" | "bookmark" | "calculate" | "chart" | "check" | "chevron" | "chevron_left" | "clock" | "close" | "code" | "collection" | "compass" | "download" | "filter" | "flag" | "folder" | "headphones" | "heart" | "history" | "layers" | "logout" | "mail" | "menu" | "message" | "monitor" | "moon" | "more" | "pause" | "play" | "plus" | "psychology" | "science" | "school" | "search" | "settings" | "shelves" | "shield" | "star" | "stop" | "sun" | "translate" | "upload" | "user" | "users" | "versions" | "volume"
 
 export type Status = "approved" | "pending" | "rejected" | "reported"
 

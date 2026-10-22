@@ -31,8 +31,10 @@
 - **Facet & Taxonomy Filtering:** Filter by resource type (*Study guides*, *Revision notes*, *Reading lists*), academic subject, document format, and custom tags.
 - **Dynamic Sorting:** Rank resources by relevance, highest community rating, or most saved.
 
-### 📖 Distraction-Free In-App Document Reader
+### 📖 Distraction-Free In-App Smart Reader
 - **Multi-Format Document Viewer:** Native reader supporting document paging, interactive text selection, and proportional zoom scaling (70%–150%).
+- **🎧 AI Audio Narration (Amazon Polly):** Integrated text-to-speech audio player allowing learners to listen to study guides on the go, supporting both female and male voices. Fulfills WCAG / a11y standards.
+- **🌐 Instant Multilingual Translation (Amazon Translate):** One-click neural translation converting study materials dynamically into **English, Spanish, German, Hindi, Tamil, and Malayalam** with client-side zero-cost caching.
 - **Interactive Controls:** Smooth page flipping (`◄` / `►`), zoom reset (`1:1`), and full-screen view (`F`).
 - **Security & Hygiene:** Integrated **DOMPurify** sanitization and XSS stripping on all rendered content.
 - **Secure Pre-signed Streaming:** Seamless streaming of documents from private Amazon S3 buckets via time-limited pre-signed URLs.
@@ -103,6 +105,8 @@ OpenShelf combines a high-performance **React 19 + Vite** frontend with a modula
 | **Amazon DynamoDB** | Single-digit millisecond latency NoSQL persistence for resources, user profiles, revisions, feedback, and moderation queues. |
 | **Amazon SNS** | Push notification topic triggering real-time alerts to moderators when resources are flagged or submitted. |
 | **Amazon CloudWatch** | Ingestion of custom performance metrics (latency, HTTP error rates, throughput) reflected live in the telemetry dashboard. |
+| **Amazon Polly** | Neural & standard text-to-speech engine delivering real-time audio narration inside the Smart Reader. |
+| **Amazon Translate** | Neural machine translation translating study materials into Spanish, German, Hindi, Tamil, and Malayalam. |
 | **AWS STS** | Credential validation and IAM role verification for EC2 instance profiles and local development. |
 
 ---

@@ -79,6 +79,24 @@
         "cognito-idp:ListUserPools"
       ],
       "Resource": "*"
+    },
+    {
+      "Sid": "OpenShelfPollyAccess",
+      "Effect": "Allow",
+      "Action": [
+        "polly:SynthesizeSpeech",
+        "polly:DescribeVoices"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "OpenShelfTranslateAccess",
+      "Effect": "Allow",
+      "Action": [
+        "translate:TranslateText",
+        "translate:ListLanguages"
+      ],
+      "Resource": "*"
     }
   ]
 }

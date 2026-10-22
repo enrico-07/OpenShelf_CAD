@@ -20,6 +20,7 @@ export const iconGlyphs = {
   filter: "tune",
   flag: "flag",
   folder: "folder",
+  headphones: "headphones",
   heart: "thumb_up",
   history: "history_edu",
   layers: "category",
@@ -30,6 +31,8 @@ export const iconGlyphs = {
   monitor: "desktop_windows",
   moon: "dark_mode",
   more: "more_horiz",
+  pause: "pause",
+  play: "play_arrow",
   plus: "add",
   psychology: "psychology",
   science: "science",
@@ -39,11 +42,14 @@ export const iconGlyphs = {
   shelves: "shelves",
   shield: "shield",
   star: "star",
+  stop: "stop",
   sun: "light_mode",
+  translate: "translate",
   upload: "upload",
   user: "person",
   users: "group",
   versions: "history",
+  volume: "volume_up",
 } as const
 
 export function Icon({

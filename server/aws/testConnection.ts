@@ -8,6 +8,8 @@ import { DynamoDBClient, ListTablesCommand } from "@aws-sdk/client-dynamodb"
 import { S3Client, ListBucketsCommand } from "@aws-sdk/client-s3"
 import { SNSClient, ListTopicsCommand } from "@aws-sdk/client-sns"
 import { CloudWatchClient, ListMetricsCommand } from "@aws-sdk/client-cloudwatch"
+import { PollyClient, DescribeVoicesCommand } from "@aws-sdk/client-polly"
+import { TranslateClient, ListLanguagesCommand } from "@aws-sdk/client-translate"
 import { awsConfig } from "./config.ts"
 
 async function runDiagnostics() {
@@ -106,6 +108,30 @@ async function runDiagnostics() {
     await cw.send(new ListMetricsCommand({ Namespace: awsConfig.cloudWatch.namespace }))
     console.log("SUCCESS!")
     console.log(`   - Metric namespace '${awsConfig.cloudWatch.namespace}' is accessible`)
+  } catch (err: any) {
+    console.log("FAILED!")
+    console.log(`   Error: ${err.message}`)
+  }
+
+  // 6. Test Amazon Polly
+  try {
+    process.stdout.write("6. Testing Amazon Polly (Text-to-Speech)... ")
+    const polly = new PollyClient(clientConfig)
+    const voices = await polly.send(new DescribeVoicesCommand({ LanguageCode: "en-US" }))
+    console.log("SUCCESS!")
+    console.log(`   - Available US English voices: ${voices.Voices?.length || 0}`)
+  } catch (err: any) {
+    console.log("FAILED!")
+    console.log(`   Error: ${err.message}`)
+  }
+
+  // 7. Test Amazon Translate
+  try {
+    process.stdout.write("7. Testing Amazon Translate (Neural Translation)... ")
+    const translate = new TranslateClient(clientConfig)
+    const languages = await translate.send(new ListLanguagesCommand({ MaxResults: 10 }))
+    console.log("SUCCESS!")
+    console.log(`   - Neural Translation engine accessible`)
   } catch (err: any) {
     console.log("FAILED!")
     console.log(`   Error: ${err.message}`)

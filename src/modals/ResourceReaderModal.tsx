@@ -4,6 +4,7 @@ import { Modal } from "../components/common/Modal"
 import { Button } from "../components/common/Button"
 import { Icon } from "../components/common/Icon"
 import api from "../services/api"
+import { getFallbackTranslations } from "../utils/multilingualDictionary"
 
 export const SUPPORTED_LANGUAGES = [
   { code: "en", label: "English", flag: "🇺🇸", nativeName: "English" },
@@ -176,7 +177,11 @@ export function ResourceReaderModal({
       .then((res) => {
         if (isCancelled) return
 
-        const translated = res.translatedTexts
+        const translated =
+          Array.isArray(res?.translatedTexts) && res.translatedTexts.length > 0
+            ? res.translatedTexts
+            : getFallbackTranslations(textBatch, currentLang)
+
         const heading = translated[0] || baseContent.heading
         const paragraphs = translated.slice(
           1,
@@ -195,13 +200,24 @@ export function ResourceReaderModal({
         setDisplayContent(pageData)
       })
       .catch((err) => {
-        console.warn("Translation failed, using base content:", err)
+        console.warn("Cloud translation failed, applying native fallback:", err)
         if (!isCancelled) {
-          setDisplayContent({
-            heading: baseContent.heading,
-            paragraphs: baseContent.paragraphs,
-            tags: selected.tags,
-          })
+          const fallbackBatch = getFallbackTranslations(textBatch, currentLang)
+          const heading = fallbackBatch[0] || baseContent.heading
+          const paragraphs = fallbackBatch.slice(
+            1,
+            1 + baseContent.paragraphs.length,
+          )
+          const tags = fallbackBatch.slice(1 + baseContent.paragraphs.length)
+
+          const pageData: TranslatedPage = {
+            heading,
+            paragraphs:
+              paragraphs.length > 0 ? paragraphs : baseContent.paragraphs,
+            tags: tags.length > 0 ? tags : selected.tags,
+          }
+          translationCache.current[cacheKey] = pageData
+          setDisplayContent(pageData)
         }
       })
       .finally(() => {
@@ -226,6 +242,40 @@ export function ResourceReaderModal({
   }
 
   // Handle Amazon Polly Speech Synthesis
+  const startSpeechSynthesis = async (
+    gender: "female" | "male" = voiceGender,
+  ) => {
+    stopAudioPlayback()
+    setAudioState("loading")
+
+    const fullTextToRead = `${displayContent.heading}. ${displayContent.paragraphs.join(" ")}`
+    const cacheKey = `${selected.id}_p${currentPage}_${currentLang}_${gender}`
+
+    // Check client-side audio cache
+    if (audioCache.current[cacheKey]) {
+      const audioUrl = audioCache.current[cacheKey]
+      playAudioFromUrl(audioUrl, gender)
+      return
+    }
+
+    try {
+      const res = await api.synthesizeSpeech(fullTextToRead, {
+        languageCode: currentLang,
+        gender: gender,
+      })
+
+      if (res.audioUrl && !res.fallback) {
+        audioCache.current[cacheKey] = res.audioUrl
+        playAudioFromUrl(res.audioUrl, gender)
+      } else {
+        // Fallback to browser-native speech synthesis
+        fallbackBrowserSpeech(fullTextToRead, currentLang, gender)
+      }
+    } catch {
+      fallbackBrowserSpeech(fullTextToRead, currentLang, gender)
+    }
+  }
+
   const handleToggleAudio = async () => {
     if (audioState === "playing") {
       if (audioRef.current) {
@@ -247,38 +297,20 @@ export function ResourceReaderModal({
       return
     }
 
-    // Audio is idle, synthesize or read
-    setAudioState("loading")
+    await startSpeechSynthesis(voiceGender)
+  }
 
-    const fullTextToRead = `${displayContent.heading}. ${displayContent.paragraphs.join(" ")}`
-    const cacheKey = `${selected.id}_p${currentPage}_${currentLang}_${voiceGender}`
-
-    // Check client-side audio cache
-    if (audioCache.current[cacheKey]) {
-      const audioUrl = audioCache.current[cacheKey]
-      playAudioFromUrl(audioUrl)
-      return
-    }
-
-    try {
-      const res = await api.synthesizeSpeech(fullTextToRead, {
-        languageCode: currentLang,
-        gender: voiceGender,
-      })
-
-      if (res.audioUrl && !res.fallback) {
-        audioCache.current[cacheKey] = res.audioUrl
-        playAudioFromUrl(res.audioUrl)
-      } else {
-        // Fallback to browser-native speech synthesis
-        fallbackBrowserSpeech(fullTextToRead, currentLang)
-      }
-    } catch {
-      fallbackBrowserSpeech(fullTextToRead, currentLang)
+  const handleVoiceGenderChange = (gender: "female" | "male") => {
+    setVoiceGender(gender)
+    if (audioState === "playing" || audioState === "loading") {
+      startSpeechSynthesis(gender)
     }
   }
 
-  const playAudioFromUrl = (url: string) => {
+  const playAudioFromUrl = (
+    url: string,
+    gender: "female" | "male" = voiceGender,
+  ) => {
     stopAudioPlayback()
     const audio = new Audio(url)
     audioRef.current = audio
@@ -289,7 +321,7 @@ export function ResourceReaderModal({
 
     audio.onerror = () => {
       const fullTextToRead = `${displayContent.heading}. ${displayContent.paragraphs.join(" ")}`
-      fallbackBrowserSpeech(fullTextToRead, currentLang)
+      fallbackBrowserSpeech(fullTextToRead, currentLang, gender)
     }
 
     audio
@@ -299,11 +331,15 @@ export function ResourceReaderModal({
       })
       .catch(() => {
         const fullTextToRead = `${displayContent.heading}. ${displayContent.paragraphs.join(" ")}`
-        fallbackBrowserSpeech(fullTextToRead, currentLang)
+        fallbackBrowserSpeech(fullTextToRead, currentLang, gender)
       })
   }
 
-  const fallbackBrowserSpeech = (text: string, lang: string) => {
+  const fallbackBrowserSpeech = (
+    text: string,
+    lang: string,
+    gender: "female" | "male" = voiceGender,
+  ) => {
     stopAudioPlayback()
     if (typeof window === "undefined" || !("speechSynthesis" in window)) {
       setAudioState("idle")
@@ -311,8 +347,48 @@ export function ResourceReaderModal({
     }
 
     const utterance = new SpeechSynthesisUtterance(text)
-    utterance.lang = lang === "en" ? "en-US" : lang
+    const langMap: Record<string, string> = {
+      en: "en-US",
+      es: "es-ES",
+      de: "de-DE",
+      hi: "hi-IN",
+      ta: "ta-IN",
+      ml: "ml-IN",
+    }
+    utterance.lang = langMap[lang] || lang
     utterance.rate = 1.0
+
+    // Voice Pitch adjustment: Male voices have deeper pitch (0.82), Female voices have brighter pitch (1.18)
+    if (gender === "male") {
+      utterance.pitch = 0.82
+    } else {
+      utterance.pitch = 1.18
+    }
+
+    const voices = window.speechSynthesis.getVoices()
+    if (voices && voices.length > 0) {
+      const langPrefix = lang.toLowerCase()
+      const matching = voices.filter(
+        (v) =>
+          v.lang.toLowerCase().startsWith(langPrefix) ||
+          v.lang.toLowerCase().replace("_", "-").includes(langPrefix),
+      )
+      const pool = matching.length > 0 ? matching : voices
+
+      if (gender === "male") {
+        const maleVoice = pool.find((v) =>
+          /male|david|george|mark|guy|stefan|pablo|arjun|rishi/i.test(v.name),
+        )
+        if (maleVoice) utterance.voice = maleVoice
+      } else {
+        const femaleVoice = pool.find((v) =>
+          /female|zira|samantha|victoria|susan|laura|kavya|aditi|hazel/i.test(
+            v.name,
+          ),
+        )
+        if (femaleVoice) utterance.voice = femaleVoice
+      }
+    }
 
     utterance.onend = () => {
       setAudioState("idle")
@@ -479,11 +555,8 @@ export function ResourceReaderModal({
                 className={`voice-choice-btn ${
                   voiceGender === "female" ? "active" : ""
                 }`}
-                onClick={() => {
-                  stopAudioPlayback()
-                  setVoiceGender("female")
-                }}
-                title="Female Voice (Joanna/Lupe/Aditi)"
+                onClick={() => handleVoiceGenderChange("female")}
+                title="Female Voice (Joanna/Lupe/Aditi/Zira)"
                 type="button"
               >
                 Female
@@ -492,11 +565,8 @@ export function ResourceReaderModal({
                 className={`voice-choice-btn ${
                   voiceGender === "male" ? "active" : ""
                 }`}
-                onClick={() => {
-                  stopAudioPlayback()
-                  setVoiceGender("male")
-                }}
-                title="Male Voice (Matthew/Hans)"
+                onClick={() => handleVoiceGenderChange("male")}
+                title="Male Voice (Matthew/Hans/David/Arjun)"
                 type="button"
               >
                 Male

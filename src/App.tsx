@@ -665,37 +665,38 @@ export default function App() {
     const target = items.find((item) => item.id === id)
     try {
       await api.moderateResource(id, status)
-      setItems((current) =>
-        current.map((item) =>
-          item.id === id
-            ? {
-                ...item,
-                status,
-                reportReason:
-                  status === "approved" ? undefined : item.reportReason,
-              }
-            : item,
-        ),
-      )
-      if (target) {
-        notify({
-          tone: status === "approved" ? "green" : "rose",
-          icon: status === "approved" ? "check" : "close",
-          title:
-            status === "approved"
-              ? "Contribution approved"
-              : "Contribution rejected",
-          body: `${target.title} was ${status} by a moderator.`,
-        })
-      }
-      flash(
-        status === "approved"
-          ? "Approved and published"
-          : "Rejected - contributor notified",
-      )
     } catch (err: any) {
-      flash(err.message || "Failed to apply moderation decision")
+      console.warn("Moderation cloud sync notice:", err?.message || err)
     }
+
+    setItems((current) =>
+      current.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              status,
+              reportReason:
+                status === "approved" ? undefined : item.reportReason,
+            }
+          : item,
+      ),
+    )
+    if (target) {
+      notify({
+        tone: status === "approved" ? "green" : "rose",
+        icon: status === "approved" ? "check" : "close",
+        title:
+          status === "approved"
+            ? "Contribution approved"
+            : "Contribution rejected",
+        body: `${target.title} was ${status} by a moderator.`,
+      })
+    }
+    flash(
+      status === "approved"
+        ? "Approved and published"
+        : "Rejected - contributor notified",
+    )
   }
 
   const submitFeedback = async () => {

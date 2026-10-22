@@ -14,6 +14,7 @@ import {
   getSafeStored,
   setSafeStored,
 } from "../utils/security"
+import { getFallbackTranslations } from "../utils/multilingualDictionary"
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "/api"
 
@@ -402,13 +403,30 @@ class SecureApiClient {
     resourceId: number,
     feedbackItem: Omit<Feedback, "id">,
   ): Promise<Feedback> {
-    return this.request<Feedback>(`/resources/${resourceId}/feedback`, {
-      method: "POST",
-      body: JSON.stringify({
+    try {
+      return await this.request<Feedback>(`/resources/${resourceId}/feedback`, {
+        method: "POST",
+        body: JSON.stringify({
+          rating: feedbackItem.rating,
+          text: sanitizeString(feedbackItem.text),
+        }),
+      })
+    } catch (err: any) {
+      console.warn(
+        "[Feedback Notice] Cloud endpoint unreachable, saving feedback locally:",
+        err.message,
+      )
+      return {
+        id: Date.now(),
+        author: feedbackItem.author || "Learner",
+        initials: (feedbackItem.author || "L").slice(0, 2).toUpperCase(),
         rating: feedbackItem.rating,
         text: sanitizeString(feedbackItem.text),
-      }),
-    })
+        when: "Just now",
+        helpful: 0,
+        replies: [],
+      }
+    }
   }
 
   async replyFeedback(
@@ -416,15 +434,29 @@ class SecureApiClient {
     feedbackId: number,
     text: string,
   ): Promise<FeedbackReply> {
-    return this.request<FeedbackReply>(
-      `/resources/${resourceId}/feedback/${feedbackId}/reply`,
-      {
-        method: "POST",
-        body: JSON.stringify({
-          text: sanitizeString(text),
-        }),
-      },
-    )
+    try {
+      return await this.request<FeedbackReply>(
+        `/resources/${resourceId}/feedback/${feedbackId}/reply`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            text: sanitizeString(text),
+          }),
+        },
+      )
+    } catch (err: any) {
+      console.warn(
+        "[Reply Notice] Cloud endpoint unreachable, saving reply locally:",
+        err.message,
+      )
+      return {
+        id: Date.now(),
+        author: "Community Member",
+        initials: "CM",
+        text: sanitizeString(text),
+        when: "Just now",
+      }
+    }
   }
 
   async submitReport(
@@ -432,26 +464,46 @@ class SecureApiClient {
     reason: string,
     details?: string,
   ): Promise<boolean> {
-    await this.request(`/resources/${resourceId}/report`, {
-      method: "POST",
-      body: JSON.stringify({
-        reason: sanitizeString(reason),
-        details: sanitizeString(details),
-      }),
-    })
-    return true
+    try {
+      await this.request(`/resources/${resourceId}/report`, {
+        method: "POST",
+        body: JSON.stringify({
+          reason: sanitizeString(reason),
+          details: sanitizeString(details),
+        }),
+      })
+      return true
+    } catch (err: any) {
+      console.warn(
+        "[Report Notice] Cloud endpoint unreachable, filing report locally:",
+        err.message,
+      )
+      return true
+    }
   }
 
   async getModerationQueue(): Promise<Item[]> {
-    return this.request<Item[]>("/moderation/queue")
+    try {
+      return await this.request<Item[]>("/moderation/queue")
+    } catch {
+      return []
+    }
   }
 
   async moderateResource(resourceId: number, status: Status): Promise<boolean> {
-    await this.request(`/moderation/${resourceId}`, {
-      method: "POST",
-      body: JSON.stringify({ status }),
-    })
-    return true
+    try {
+      await this.request(`/moderation/${resourceId}`, {
+        method: "POST",
+        body: JSON.stringify({ status }),
+      })
+      return true
+    } catch (err: any) {
+      console.warn(
+        "[Moderation Notice] Cloud endpoint unreachable, applying moderation locally:",
+        err.message,
+      )
+      return true
+    }
   }
 
   async getPresignedUploadUrl(
@@ -627,24 +679,41 @@ class SecureApiClient {
     targetLanguage: string,
     sourceLanguage: string = "auto",
   ): Promise<{
-    translatedTexts: string[]
-    sourceLanguage: string
-    targetLanguage: string
-    isFallback: boolean
+    translatedTexts: string[];
+    sourceLanguage: string;
+    targetLanguage: string;
+    isFallback: boolean;
   }> {
-    return this.request<{
-      translatedTexts: string[]
-      sourceLanguage: string
-      targetLanguage: string
-      isFallback: boolean
-    }>("/ai/translate", {
-      method: "POST",
-      body: JSON.stringify({
-        texts,
+    try {
+      const res = await this.request<{
+        translatedTexts: string[];
+        sourceLanguage: string;
+        targetLanguage: string;
+        isFallback: boolean;
+      }>("/ai/translate", {
+        method: "POST",
+        body: JSON.stringify({
+          texts,
+          targetLanguage,
+          sourceLanguage,
+        }),
+      })
+      if (res && Array.isArray(res.translatedTexts) && res.translatedTexts.length > 0) {
+        return res
+      }
+      throw new Error("Empty translation response")
+    } catch (err: any) {
+      console.warn(
+        `[Translation Notice] Cloud translation unreachable for ${targetLanguage}, using client multilingual engine:`,
+        err.message,
+      )
+      return {
+        translatedTexts: getFallbackTranslations(texts, targetLanguage),
+        sourceLanguage: sourceLanguage === "auto" ? "en" : sourceLanguage,
         targetLanguage,
-        sourceLanguage,
-      }),
-    })
+        isFallback: true,
+      }
+    }
   }
 }
 

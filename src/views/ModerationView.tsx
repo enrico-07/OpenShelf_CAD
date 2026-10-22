@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Item, Status } from "../types"
 import { ResourceCover } from "../components/cover/ResourceCover"
 import { Button } from "../components/common/Button"
@@ -13,6 +13,7 @@ export function ModerationView({
   onOpenReader,
   onModerate,
   onUpgradeWithPasskey,
+  onRefresh,
 }: {
   isModerator: boolean
   items: Item[]
@@ -22,10 +23,32 @@ export function ModerationView({
   onOpenReader?: (id: number) => void
   onModerate: (id: number, status: Status) => void
   onUpgradeWithPasskey?: (passkey: string) => Promise<boolean>
+  onRefresh?: () => Promise<void>
 }) {
   const [passkeyInput, setPasskeyInput] = useState("")
   const [passkeyError, setPasskeyError] = useState<string | null>(null)
   const [isVerifying, setIsVerifying] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  // Real-time synchronization: sync on mount and auto-poll every 10 seconds
+  useEffect(() => {
+    if (!isModerator || !onRefresh) return
+    onRefresh()
+    const timer = setInterval(() => {
+      onRefresh().catch(() => {})
+    }, 10000)
+    return () => clearInterval(timer)
+  }, [isModerator, onRefresh])
+
+  const handleManualRefresh = async () => {
+    if (!onRefresh || isRefreshing) return
+    setIsRefreshing(true)
+    try {
+      await onRefresh()
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
 
   const statusLabel: Record<Status, string> = {
     approved: "Approved",
@@ -115,19 +138,33 @@ export function ModerationView({
 
   return (
     <div className="moderation-panel">
-      <div className="moderation-summary">
-        <span>
-          <strong>{items.filter((i) => i.status === "pending").length}</strong>
-          <small>Pending</small>
-        </span>
-        <span>
-          <strong>{items.filter((i) => i.status === "reported").length}</strong>
-          <small>Reported</small>
-        </span>
-        <span>
-          <strong>4h</strong>
-          <small>Average response</small>
-        </span>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px", marginBottom: "16px" }}>
+        <div className="moderation-summary" style={{ margin: 0 }}>
+          <span>
+            <strong>{items.filter((i) => i.status === "pending").length}</strong>
+            <small>Pending</small>
+          </span>
+          <span>
+            <strong>{items.filter((i) => i.status === "reported").length}</strong>
+            <small>Reported</small>
+          </span>
+          <span>
+            <strong>Real-time</strong>
+            <small>AWS Sync</small>
+          </span>
+        </div>
+
+        {onRefresh && (
+          <Button
+            className="secondary-button"
+            icon={isRefreshing ? "clock" : "sparkle"}
+            onClick={handleManualRefresh}
+            type="button"
+            disabled={isRefreshing}
+          >
+            {isRefreshing ? "Syncing Cloud..." : "Refresh Queue"}
+          </Button>
+        )}
       </div>
 
       <div className="segmented tabs">

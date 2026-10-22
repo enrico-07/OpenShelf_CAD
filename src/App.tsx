@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react"
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Item,
   Version,
@@ -188,18 +188,41 @@ export default function App() {
     setSafeStored("selectedId", selectedId)
   }, [selectedId])
 
-  // Synchronize initial data from Backend API (with graceful offline fallback)
+  // Synchronize live data from Backend API and DynamoDB across devices
+  const syncCloudData = useCallback(async () => {
+    try {
+      const isMod = user?.role === "moderator"
+      const [cloudResources, queueItems] = await Promise.all([
+        api.getResources().catch(() => null),
+        isMod ? api.getModerationQueue().catch(() => []) : Promise.resolve([]),
+      ])
+
+      setItems((prev) => {
+        const byId = new Map<number, Item>()
+        // Preserve existing items
+        prev.forEach((it) => byId.set(it.id, it))
+        // Authoritatively update with cloud resources
+        if (cloudResources && Array.isArray(cloudResources)) {
+          cloudResources.forEach((it) => byId.set(it.id, it))
+        }
+        // Authoritatively update with moderation queue items (pending/reported)
+        if (queueItems && Array.isArray(queueItems)) {
+          queueItems.forEach((it) => byId.set(it.id, it))
+        }
+        return Array.from(byId.values())
+      })
+    } catch (err: any) {
+      console.warn("[Cloud Sync Notice]:", err.message)
+    }
+  }, [user?.role])
+
+  // Synchronize on mount AND whenever user role or active view changes
+  useEffect(() => {
+    syncCloudData()
+  }, [syncCloudData, activeView])
+
   useEffect(() => {
     let active = true
-    api
-      .getResources()
-      .then((data) => {
-        if (active && data && data.length > 0) {
-          setItems(data)
-        }
-      })
-      .catch(() => {})
-
     api
       .getNotes()
       .then((data) => {
@@ -994,11 +1017,13 @@ export default function App() {
             onOpenReader={openReader}
             onOpenResource={openResource}
             onSelectModTab={setModTab}
+            onRefresh={syncCloudData}
             onUpgradeWithPasskey={async (passkey) => {
               try {
                 const res = await api.upgradeRole(passkey)
                 setUser(res.user)
                 flash("Moderator privileges verified & unlocked!")
+                await syncCloudData()
                 return true
               } catch (err: any) {
                 flash(err.message || "Invalid passkey")

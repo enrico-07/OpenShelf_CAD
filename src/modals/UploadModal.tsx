@@ -1,4 +1,4 @@
-import { FormEvent, useState, ChangeEvent } from "react"
+import { FormEvent, useState, useEffect, ChangeEvent } from "react"
 import { Item, Version } from "../types"
 import { Icon } from "../components/common/Icon"
 import { Button } from "../components/common/Button"
@@ -50,6 +50,15 @@ export function UploadModal({
   const [fileError, setFileError] = useState<string | null>(null)
   const [isSimulatingS3Upload, setIsSimulatingS3Upload] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
+
+  // Automatically reset internal file selections whenever draft.file is emptied
+  useEffect(() => {
+    if (!draft.file) {
+      setSelectedFile(null)
+      setFileMeta(null)
+      setFileError(null)
+    }
+  }, [draft.file])
 
   const maxSizeBytes = 25 * 1024 * 1024 // 25 MB limit
   const allowedExtensions = [".pdf", ".doc", ".docx", ".ppt", ".pptx"]
@@ -229,6 +238,34 @@ export function UploadModal({
                   </span>
                 </div>
               </div>
+            )}
+
+            {draft.file && (
+              <button
+                type="button"
+                className="clear-selected-file-action"
+                style={{
+                  alignSelf: "center",
+                  margin: "8px auto 0",
+                  fontSize: "13px",
+                  color: "var(--accent-color, #2563eb)",
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  fontWeight: 500,
+                }}
+                onClick={() => {
+                  setSelectedFile(null)
+                  setFileMeta(null)
+                  setFileError(null)
+                  onDraftChange((d) => ({ ...d, file: "", title: "" }))
+                }}
+              >
+                <Icon name="close" size={14} /> Choose a different file
+              </button>
             )}
 
             {!draftParent && (

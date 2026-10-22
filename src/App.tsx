@@ -258,7 +258,7 @@ export default function App() {
   // Modals & Panels
   const [upload, setUpload] = useState<null | { revisionOf?: number }>(null)
   const [uploadStep, setUploadStep] = useState(1)
-  const [draft, setDraft] = useState<DraftState>({
+  const emptyDraft: DraftState = {
     title: "",
     subject: subjects[0]?.[1] || "Computer Science",
     type: "Study guide",
@@ -269,7 +269,25 @@ export default function App() {
     link: "",
     file: "",
     note: "",
-  })
+  }
+  const [draft, setDraft] = useState<DraftState>(emptyDraft)
+
+  const closeUpload = () => {
+    setUpload(null)
+    setUploadStep(1)
+    setDraft({
+      title: "",
+      subject: subjects[0]?.[1] || "Computer Science",
+      type: "Study guide",
+      description: "",
+      tags: "",
+      license: licenses[0],
+      attribution: "",
+      link: "",
+      file: "",
+      note: "",
+    })
+  }
 
   const [modal, setModal] =
     useState<null | "versions" | "report" | "collect" | "newCollection" | "reader">(
@@ -518,16 +536,31 @@ export default function App() {
     }
     const parent = items.find((item) => item.id === revisionOf)
     if (parent) {
-      setDraft((current) => ({
-        ...current,
+      setDraft({
         title: parent.title,
         subject: parent.subject,
         type: parent.type,
         description: parent.description,
         tags: parent.tags.join(", "),
         license: parent.license,
+        attribution: "",
+        link: "",
+        file: "",
         note: "",
-      }))
+      })
+    } else {
+      setDraft({
+        title: "",
+        subject: subjects[0]?.[1] || "Computer Science",
+        type: "Study guide",
+        description: "",
+        tags: "",
+        license: licenses[0],
+        attribution: "",
+        link: "",
+        file: "",
+        note: "",
+      })
     }
     setUpload({ revisionOf })
     setUploadStep(1)
@@ -678,8 +711,7 @@ export default function App() {
         flash(msg)
       }
     }
-    setUpload(null)
-    setUploadStep(1)
+    closeUpload()
   }
 
   const moderate = async (id: number, status: Status) => {
@@ -1444,10 +1476,7 @@ export default function App() {
         <UploadModal
           draft={draft}
           draftParent={draftParent}
-          onClose={() => {
-            setUpload(null)
-            setUploadStep(1)
-          }}
+          onClose={closeUpload}
           onDraftChange={setDraft}
           onStepChange={setUploadStep}
           onSubmit={submitUpload}

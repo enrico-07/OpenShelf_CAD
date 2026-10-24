@@ -13,6 +13,7 @@
     "init:s3": "node --env-file=.env server/scripts/initS3.ts",
     "init:cognito": "node --env-file=.env server/scripts/initCognito.ts",
     "init:sns": "node --env-file=.env server/scripts/initSns.ts",
+    "populate:cloudwatch": "node --env-file=.env server/scripts/populateCloudWatch.ts",
     "init:aws": "npm run init:dynamo && npm run init:s3 && npm run init:sns && npm run init:cognito",
     "build": "vite build",
     "preview": "vite preview",
